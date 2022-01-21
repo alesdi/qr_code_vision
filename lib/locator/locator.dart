@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 
 import '../BitMatrix.dart';
 
-final MAX_FINDERPATTERNS_TO_SEARCH = 4;
-final MIN_QUAD_RATIO = 0.5;
-final MAX_QUAD_RATIO = 1.5;
+const maxFinderPatternsToSearch = 4;
+const minQuadRatio = 0.5;
+const maxQuadRatio = 1.5;
 
 class Point {
   final double x;
   final double y;
 
   Point(this.x, this.y);
+
+  Point clone() => Point(x, y);
 
   @override
   bool operator ==(Object other) =>
@@ -30,8 +32,13 @@ class QRLocation {
   final Point alignmentPattern;
   final double dimension;
 
-  QRLocation(this.topRight, this.bottomLeft, this.topLeft,
-      this.alignmentPattern, this.dimension);
+  QRLocation({
+    required this.topRight,
+    required this.bottomLeft,
+    required this.topLeft,
+    required this.alignmentPattern,
+    required this.dimension,
+  });
 
   @override
   String toString() {
@@ -61,11 +68,7 @@ double distance(final Point a, final Point b) {
   return math.sqrt(math.pow((b.x - a.x), 2) + math.pow((b.y - a.y), 2));
 }
 
-double sumDouble(Iterable<double> values) {
-  return values.reduce((a, b) => a + b);
-}
-
-int sumInt(Iterable<int> values) {
+double sum(Iterable<double> values) {
   return values.reduce((a, b) => a + b);
 }
 
@@ -104,30 +107,67 @@ OrderedFinderPatternGroup reorderFinderPatterns(
   if (((topRight.x - topLeft.x) * (bottomLeft.y - topLeft.y)) -
           ((topRight.y - topLeft.y) * (bottomLeft.x - topLeft.x)) <
       0) {
+    final swapTemp = bottomLeft;
     bottomLeft = topRight;
-    topRight = bottomLeft;
+    topRight = swapTemp;
   }
 
-  return OrderedFinderPatternGroup(bottomLeft, topLeft, topRight);
+  return OrderedFinderPatternGroup(
+    topRight: topRight,
+    topLeft: topLeft,
+    bottomLeft: bottomLeft,
+  );
 }
 
 class Dimension {
   final double dimension;
   final double moduleSize;
 
-  Dimension(this.dimension, this.moduleSize);
+  Dimension({
+    required this.dimension,
+    required this.moduleSize,
+  });
 }
 
 // Computes the dimension (number of modules on a side) of the QR Code based on the position of the finder patterns
-Dimension computeDimension(final Point topLeft, final Point topRight,
-    final Point bottomLeft, final BitMatrix matrix) {
+Dimension computeDimension({
+  required final Point topLeft,
+  required final Point topRight,
+  required final Point bottomLeft,
+  required final BitMatrix matrix,
+}) {
+  final topToBottom = countBlackWhiteRun(
+    origin: topLeft,
+    end: bottomLeft,
+    matrix: matrix,
+    length: 5,
+  );
+
+  final leftToRight = countBlackWhiteRun(
+    origin: topLeft,
+    end: topRight,
+    matrix: matrix,
+    length: 5,
+  );
+
+  final bottomToTop = countBlackWhiteRun(
+    origin: bottomLeft,
+    end: topLeft,
+    matrix: matrix,
+    length: 5,
+  );
+
+  final rightToLeft = countBlackWhiteRun(
+    origin: topRight,
+    end: topLeft,
+    matrix: matrix,
+    length: 5,
+  );
   final double moduleSize =
-      (sumDouble(countBlackWhiteRun(topLeft, bottomLeft, matrix, 5)) /
-                  7 + // Divide by 7 since the ratio is 1:1:3:1:1
-              sumDouble(countBlackWhiteRun(topLeft, topRight, matrix, 5)) / 7 +
-              sumDouble(countBlackWhiteRun(bottomLeft, topLeft, matrix, 5)) /
-                  7 +
-              sumDouble(countBlackWhiteRun(topRight, topLeft, matrix, 5)) / 7) /
+      (sum(topToBottom) / 7 + // Divide by 7 since the ratio is 1:1:3:1:1
+              sum(leftToRight) / 7 +
+              sum(bottomToTop) / 7 +
+              sum(rightToLeft) / 7) /
           4;
 
   if (moduleSize < 1) {
@@ -145,7 +185,7 @@ Dimension computeDimension(final Point topLeft, final Point topRight,
       dimension--;
       break;
   }
-  return Dimension(dimension.toDouble(), moduleSize);
+  return Dimension(dimension: dimension.toDouble(), moduleSize: moduleSize);
 }
 
 // Takes an origin point and an end point and counts the sizes of the black white run from the origin towards the end point.
@@ -153,7 +193,9 @@ Dimension computeDimension(final Point topLeft, final Point topRight,
 // Uses a variant of http://en.wikipedia.org/wiki/Bresenham's_line_algorithm
 List<double> countBlackWhiteRunTowardsPoint(final Point origin, final Point end,
     final BitMatrix matrix, final int length) {
-  final List<Point> switchPoints = [Point(origin.x, origin.y)];
+  final List<Point> switchPoints = [
+    Point(origin.x.floorToDouble(), origin.y.floorToDouble())
+  ];
   final steep = (end.y - origin.y).abs() > (end.x - origin.x).abs();
 
   final int fromX;
@@ -204,7 +246,7 @@ List<double> countBlackWhiteRunTowardsPoint(final Point origin, final Point end,
   }
   final List<double> distances = [];
   for (var i = 0; i < length; i++) {
-    if (switchPoints.length >= i) {
+    if (i < switchPoints.length - 1) {
       distances.add(distance(switchPoints[i], switchPoints[i + 1]));
     } else {
       distances.add(0);
@@ -217,21 +259,37 @@ class BlackWhiteRunScore {
   final double averageSize;
   final double error;
 
-  BlackWhiteRunScore(this.averageSize, this.error);
+  BlackWhiteRunScore({
+    required this.averageSize,
+    required this.error,
+  });
 }
 
 // Takes an origin point and an end point and counts the sizes of the black white run in the origin point
 // along the line that intersects with the end point. Returns an array of elements, representing the pixel sizes
 // of the black white run. Takes a length which represents the number of switches from black to white to look for.
-List<double> countBlackWhiteRun(final Point origin, final Point end,
-    final BitMatrix matrix, final int length) {
+List<double> countBlackWhiteRun({
+  required final Point origin,
+  required final Point end,
+  required final BitMatrix matrix,
+  required final int length,
+}) {
   final rise = end.y - origin.y;
   final run = end.x - origin.x;
 
-  final towardsEnd =
-      countBlackWhiteRunTowardsPoint(origin, end, matrix, (length / 2).ceil());
-  final awayFromEnd = countBlackWhiteRunTowardsPoint(origin,
-      Point(origin.x - run, origin.y - rise), matrix, (length / 2).ceil());
+  final towardsEnd = countBlackWhiteRunTowardsPoint(
+    origin,
+    end,
+    matrix,
+    (length / 2).ceil(),
+  );
+
+  final awayFromEnd = countBlackWhiteRunTowardsPoint(
+    origin,
+    Point(origin.x - run, origin.y - rise),
+    matrix,
+    (length / 2).ceil(),
+  );
 
   final middleValue = towardsEnd.removeAt(0) +
       awayFromEnd.removeAt(0) -
@@ -243,13 +301,13 @@ List<double> countBlackWhiteRun(final Point origin, final Point end,
 // that is the amount the run diverges from the expected ratio
 BlackWhiteRunScore scoreBlackWhiteRun(
     List<double> sequence, List<double> ratios) {
-  final averageSize = sumDouble(sequence) / sumDouble(ratios);
+  final averageSize = sum(sequence) / sum(ratios);
   double error = 0;
   for (var i = 0; i < ratios.length; i++) {
     error += math.pow(sequence[i] - ratios[i] * averageSize, 2);
   }
 
-  return BlackWhiteRunScore(averageSize, error);
+  return BlackWhiteRunScore(averageSize: averageSize, error: error);
 }
 
 // Takes an X,Y point and an array of sizes and scores the point against those ratios.
@@ -257,25 +315,43 @@ BlackWhiteRunScore scoreBlackWhiteRun(
 // against that.
 double scorePattern(Point point, List<double> ratios, BitMatrix matrix) {
   try {
-    final horizontalRun =
-        countBlackWhiteRun(point, Point(-1, point.y), matrix, ratios.length);
-    final verticalRun =
-        countBlackWhiteRun(point, Point(point.x, -1), matrix, ratios.length);
+    final horizontalRun = countBlackWhiteRun(
+      origin: point,
+      end: Point(-1, point.y),
+      matrix: matrix,
+      length: ratios.length,
+    );
+
+    final verticalRun = countBlackWhiteRun(
+      origin: point,
+      end: Point(point.x, -1),
+      matrix: matrix,
+      length: ratios.length,
+    );
 
     final topLeftPoint = Point(
       math.max(0, point.x - point.y) - 1,
       math.max(0, point.y - point.x) - 1,
     );
-    final topLeftBottomRightRun =
-        countBlackWhiteRun(point, topLeftPoint, matrix, ratios.length);
+
+    final topLeftBottomRightRun = countBlackWhiteRun(
+      origin: point,
+      end: topLeftPoint,
+      matrix: matrix,
+      length: ratios.length,
+    );
 
     final bottomLeftPoint = Point(
       math.min(matrix.width, point.x + point.y) + 1,
       math.min(matrix.height, point.y + point.x) + 1,
     );
 
-    final bottomLeftTopRightRun =
-        countBlackWhiteRun(point, bottomLeftPoint, matrix, ratios.length);
+    final bottomLeftTopRightRun = countBlackWhiteRun(
+      origin: point,
+      end: bottomLeftPoint,
+      matrix: matrix,
+      length: ratios.length,
+    );
 
     final horzError = scoreBlackWhiteRun(horizontalRun, ratios);
     final vertError = scoreBlackWhiteRun(verticalRun, ratios);
@@ -345,11 +421,9 @@ class QuadBound {
 
 class FinderPattern extends Point {
   final double score;
-  final double x;
-  final double y;
   final double size;
 
-  FinderPattern(this.score, this.x, this.y, this.size) : super(x, y);
+  FinderPattern(this.score, double x, double y, this.size) : super(x, y);
 
   Point toPoint() {
     return Point(x, y);
@@ -368,19 +442,23 @@ class OrderedFinderPatternGroup {
   final Point topLeft;
   final Point bottomLeft;
 
-  OrderedFinderPatternGroup(this.topRight, this.topLeft, this.bottomLeft);
+  OrderedFinderPatternGroup({
+    required this.topRight,
+    required this.topLeft,
+    required this.bottomLeft,
+  });
 }
 
-Set<QRLocation>? locate(BitMatrix matrix) {
+List<QRLocation>? locate(BitMatrix matrix) {
   final List<Quad> finderPatternQuads = [];
   List<Quad> activeFinderPatternQuads = [];
   final List<Quad> alignmentPatternQuads = [];
   List<Quad> activeAlignmentPatternQuads = [];
 
   for (var y = 0; y <= matrix.height; y++) {
-    var length = 0;
-    var lastBit = false;
-    var scans = [0, 0, 0, 0, 0];
+    double length = 0;
+    bool lastBit = false;
+    List<double> scans = [0, 0, 0, 0, 0];
 
     for (var x = -1; x <= matrix.width; x++) {
       final v = matrix.get(x, y);
@@ -392,7 +470,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
         lastBit = v;
 
         // Do the last 5 color changes ~ match the expected ratio for a finder pattern? 1:1:3:1:1 of b:w:b:w:b
-        final averageFinderPatternBlocksize = sumInt(scans) / 7;
+        final averageFinderPatternBlocksize = sum(scans) / 7;
         final validFinderPattern = (scans[
                             0] -
                         averageFinderPatternBlocksize)
@@ -410,7 +488,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
 
         // Do the last 3 color changes ~ match the expected ratio for an alignment pattern? 1:1:1 of w:b:w
         final averageAlignmentPatternBlocksize =
-            sumInt(scans.sublist(scans.length - 3)) / 3;
+            sum(scans.sublist(scans.length - 3)) / 3;
         final validAlignmentPattern = (scans[2] -
                         averageAlignmentPatternBlocksize)
                     .abs() <
@@ -426,8 +504,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
           final endX = x - scans[3] - scans[4];
           final startX = endX - scans[2];
 
-          final line =
-              QuadBound(startX.toDouble(), endX.toDouble(), y.toDouble());
+          final line = QuadBound(startX, endX, y.toDouble());
           // Is there a quad directly above the current spot? If so, extend it with the new line. Otherwise, create a new quad with
           // that line as the starting point.
           final matchingQuads = activeFinderPatternQuads
@@ -438,9 +515,9 @@ Set<QRLocation>? locate(BitMatrix matrix) {
                     (startX <= q.bottom.startX &&
                         endX >= q.bottom.endX &&
                         ((scans[2] / (q.bottom.endX - q.bottom.startX)) <
-                                MAX_QUAD_RATIO &&
+                                maxQuadRatio &&
                             (scans[2] / (q.bottom.endX - q.bottom.startX)) >
-                                MIN_QUAD_RATIO)),
+                                minQuadRatio)),
               )
               .toList();
           if (matchingQuads.isNotEmpty) {
@@ -454,8 +531,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
           final endX = x - scans[4];
           final startX = endX - scans[3];
 
-          final line =
-              QuadBound(startX.toDouble(), endX.toDouble(), y.toDouble());
+          final line = QuadBound(startX, endX, y.toDouble());
           // Is there a quad directly above the current spot? If so, extend it with the new line. Otherwise, create a new quad with
           // that line as the starting point.
           final matchingQuads = activeAlignmentPatternQuads
@@ -466,9 +542,9 @@ Set<QRLocation>? locate(BitMatrix matrix) {
                     (startX <= q.bottom.startX &&
                         endX >= q.bottom.endX &&
                         ((scans[2] / (q.bottom.endX - q.bottom.startX)) <
-                                MAX_QUAD_RATIO &&
+                                maxQuadRatio &&
                             (scans[2] / (q.bottom.endX - q.bottom.startX)) >
-                                MIN_QUAD_RATIO)),
+                                minQuadRatio)),
               )
               .toList();
           if (matchingQuads.isNotEmpty) {
@@ -503,7 +579,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
         final x =
             (q.top.startX + q.top.endX + q.bottom.startX + q.bottom.endX) / 4;
         final y = (q.top.y + q.bottom.y + 1) / 2;
-        if (!matrix.get((x).round(), (y).round())) {
+        if (!matrix.get(x.round(), y.round())) {
           return null;
         }
 
@@ -512,15 +588,12 @@ Set<QRLocation>? locate(BitMatrix matrix) {
           q.bottom.endX - q.bottom.startX,
           q.bottom.y - q.top.y + 1
         ];
-        final size = sumDouble(lengths) / lengths.length;
-        final score = scorePattern(
-            Point((x).roundToDouble(), (y).roundToDouble()),
-            [1, 1, 3, 1, 1],
-            matrix);
+        final size = sum(lengths) / lengths.length;
+        final score = scorePattern(Point(x.roundToDouble(), y.roundToDouble()),
+            [1, 1, 3, 1, 1], matrix);
         return FinderPattern(score, x, y, size);
       })
-      .where((q) => q != null) // Filter out any rejected quads from above
-      .cast<FinderPattern>()
+      .whereNotNull() // Filter out any rejected quads from above
       .toList();
   finderPatterns.sort((a, b) => a.score.compareTo(b.score));
   // Now take the top finder pattern options and try to find 2 other options with a similar size.
@@ -528,13 +601,13 @@ Set<QRLocation>? locate(BitMatrix matrix) {
   final List<FinderPatternGroup> finderPatternGroups = [];
   for (var i = 0; i < finderPatterns.length; i++) {
     final point = finderPatterns[i];
-    if (i > MAX_FINDERPATTERNS_TO_SEARCH) {
-      break;
+    if (i > maxFinderPatternsToSearch) {
+      continue;
     }
     final otherPoints = finderPatterns
         .whereIndexed((ii, p) => i != ii)
         .map((p) => (FinderPattern(
-            p.score + math.pow((p.size - point.size), 2) / point.size,
+            p.score + math.pow(p.size - point.size, 2) / point.size,
             p.x,
             p.y,
             p.size)))
@@ -562,19 +635,20 @@ Set<QRLocation>? locate(BitMatrix matrix) {
     finderPatternGroups[0].points[2],
   );
   final alignment = findAlignmentPattern(
-      matrix,
-      alignmentPatternQuads,
-      orderedFinderPatternGroup.topRight,
-      orderedFinderPatternGroup.topLeft,
-      orderedFinderPatternGroup.bottomLeft);
+    matrix,
+    alignmentPatternQuads,
+    orderedFinderPatternGroup.topRight,
+    orderedFinderPatternGroup.topLeft,
+    orderedFinderPatternGroup.bottomLeft,
+  );
   final List<QRLocation> result = [];
   if (alignment != null) {
     result.add(QRLocation(
-      orderedFinderPatternGroup.topRight,
-      orderedFinderPatternGroup.bottomLeft,
-      orderedFinderPatternGroup.topLeft,
-      alignment.alignmentPattern,
-      alignment.dimension,
+      topRight: orderedFinderPatternGroup.topRight.clone(),
+      bottomLeft: orderedFinderPatternGroup.bottomLeft.clone(),
+      topLeft: orderedFinderPatternGroup.topLeft.clone(),
+      alignmentPattern: alignment.alignmentPattern.clone(),
+      dimension: alignment.dimension,
     ));
   }
 
@@ -593,11 +667,11 @@ Set<QRLocation>? locate(BitMatrix matrix) {
       matrix, alignmentPatternQuads, midTopRight, midTopLeft, midBottomLeft);
   if (centeredAlignment != null) {
     result.add(QRLocation(
-      midTopRight,
-      midBottomLeft,
-      midTopLeft,
-      centeredAlignment.alignmentPattern,
-      centeredAlignment.dimension,
+      topRight: midTopRight.clone(),
+      bottomLeft: midBottomLeft.clone(),
+      topLeft: midTopLeft.clone(),
+      alignmentPattern: centeredAlignment.alignmentPattern.clone(),
+      dimension: centeredAlignment.dimension,
     ));
   }
 
@@ -605,7 +679,7 @@ Set<QRLocation>? locate(BitMatrix matrix) {
     return null;
   }
 
-  return result.toSet();
+  return result;
 }
 
 class AlignmentPattern {
@@ -616,11 +690,9 @@ class AlignmentPattern {
 }
 
 class ScoredPoint extends Point {
-  final double x;
-  final double y;
   final double score;
 
-  ScoredPoint(this.x, this.y, this.score) : super(x, y);
+  ScoredPoint(double x, double y, this.score) : super(x, y);
 }
 
 AlignmentPattern? findAlignmentPattern(
@@ -634,8 +706,12 @@ AlignmentPattern? findAlignmentPattern(
   double dimension;
   double moduleSize;
   try {
-    final dimensionModuleSize =
-        computeDimension(topLeft, topRight, bottomLeft, matrix);
+    final dimensionModuleSize = computeDimension(
+      topLeft: topLeft,
+      topRight: topRight,
+      bottomLeft: bottomLeft,
+      matrix: matrix,
+    );
 
     dimension = dimensionModuleSize.dimension;
     moduleSize = dimensionModuleSize.moduleSize;
