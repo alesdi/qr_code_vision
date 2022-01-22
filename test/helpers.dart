@@ -23,9 +23,7 @@ Image bitMatrixToImage(BitMatrix matrix) {
 
 BitMatrix loadMatrix(String path) {
   final image = decodeImage(File(path).readAsBytesSync())!;
-  return binarize(Uint8ClampedList.fromList(image.getBytes()), image.width,
-          image.height)
-      .binarized;
+  return binarize(image.getBytes(), image.width, image.height).binarized;
 }
 
 BitMatrix loadBinarized(String path) {

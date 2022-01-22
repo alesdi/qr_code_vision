@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_code_vision/entities/position.dart';
 import 'package:qr_code_vision/entities/qr_location.dart';
-import 'package:qr_code_vision/locator/locator.dart';
+import 'package:qr_code_vision/locator/qr_locator.dart';
 
 import 'helpers.dart';
 
@@ -9,14 +9,14 @@ void main() {
   const imagesPath = "./test/locator-test-data/";
   test('handles images with missing finder patterns', () {
     final binarized = loadBinarized("$imagesPath/missing-finder-patterns.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(locator.locate(binarized), null);
   });
 
   test('locates a "perfect" image', () {
     final binarized = loadBinarized("$imagesPath/perfect.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized)!,
@@ -32,7 +32,7 @@ void main() {
 
   test('locates a QR in a real world image', () {
     final binarized = loadBinarized("$imagesPath/real-world.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized)!,
@@ -48,7 +48,7 @@ void main() {
 
   test('locates a small QR code in real world photo', () {
     final binarized = loadBinarized("$imagesPath/small-photo.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized)!,
@@ -64,7 +64,7 @@ void main() {
 
   test('locates a extremely distored QR code', () {
     final binarized = loadBinarized("$imagesPath/distorted-extreme.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized)!,
@@ -80,7 +80,7 @@ void main() {
 
   test('locates a damaged QR code and guesses the finder pattern location', () {
     final binarized = loadBinarized("$imagesPath/damaged.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized)!,
@@ -96,14 +96,14 @@ void main() {
 
   test('doesn\'t locate a QR code in a malformed image', () {
     final binarized = loadBinarized("$imagesPath/malformed-infinity.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(locator.locate(binarized), null);
   });
 
   test('returns a centered alignment as a fallback', () {
     final binarized = loadBinarized("$imagesPath/odd-skew.png");
-    final locator = Locator();
+    final locator = QrLocator();
 
     expect(
       locator.locate(binarized, recenterLocation: true)!,

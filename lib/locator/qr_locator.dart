@@ -15,7 +15,7 @@ const minQuadRatio = 0.5;
 const maxQuadRatio = 1.5;
 
 /// Locates and tracks a QR given a BitMatrix representing a binary image.
-class Locator {
+class QrLocator {
   /// Search for a valid QR code in the image and returns its location.
   QrLocation? locate(
     final BitMatrix matrix, {

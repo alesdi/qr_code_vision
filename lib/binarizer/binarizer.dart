@@ -36,7 +36,7 @@ class BinarizedMatrix {
   BinarizedMatrix({required this.binarized, this.inverted});
 }
 
-BinarizedMatrix binarize(Uint8ClampedList data, int width, int height,
+BinarizedMatrix binarize(Uint8List data, int width, int height,
     {bool returnInverted = false}) {
   if (data.length != width * height * 4) {
     throw Exception("Malformed data passed to binarizer.");
