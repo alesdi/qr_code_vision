@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../BitMatrix.dart';
+import '../entities/bit_matrix.dart';
 
 const REGION_SIZE = 8;
 const MIN_DYNAMIC_RANGE = 24;

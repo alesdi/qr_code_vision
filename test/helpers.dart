@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
-import 'package:qr_code_vision/BitMatrix.dart';
 import 'package:qr_code_vision/binarizer/binarizer.dart';
+import 'package:qr_code_vision/entities/bit_matrix.dart';
 
 Image bitMatrixToImage(BitMatrix matrix) {
   final output = Uint8ClampedList(matrix.width * matrix.height * 4);
