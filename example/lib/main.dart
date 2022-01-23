@@ -78,23 +78,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (!mounted) {
         return;
       }
-      _cameraController.startImageStream((image) async {
-        try {
-          final bytes = image.planes[0].bytes;
-          final qrLocation = locator
-              .locate(binarize(bytes, image.width, image.height).binarized);
-          ui.decodeImageFromPixels(
-              bytes, image.width, image.height, ui.PixelFormat.bgra8888,
-              (result) {
-            _frameStreamController
-                .add(PreviewFrame(image: result, qrLocation: qrLocation));
-          });
-        } catch (e) {
-          if (kDebugMode) {
-            print(e);
-          }
-        }
-      });
+      _cameraController.startImageStream(_processFrame);
       setState(() {});
     });
   }
@@ -164,6 +148,34 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
     );
   }
+
+  Future<void> _processFrame(CameraImage image) async {
+    try {
+      final bytes = image.planes[0].bytes;
+      final qrLocation =
+          locator.locate(convertToBinary(bytes, image.width, image.height));
+
+      final completer = Completer();
+      ui.decodeImageFromPixels(
+        bytes,
+        image.width,
+        image.height,
+        ui.PixelFormat.bgra8888,
+        completer.complete,
+      );
+
+      _frameStreamController.add(
+        PreviewFrame(
+          image: await completer.future,
+          qrLocation: qrLocation,
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print(e);
+      }
+    }
+  }
 }
 
 class CameraViewPainter extends CustomPainter {
@@ -219,19 +231,7 @@ class CameraViewPainter extends CustomPainter {
         final overlaySize =
             max(overlayImage.width, overlayImage.height).toDouble();
 
-        final double a = (topRightOffset.dx - topLeftOffset.dx) / overlaySize;
-        final double b = (topRightOffset.dy - topLeftOffset.dy) / overlaySize;
-        final double c = (bottomLeftOffset.dx - topLeftOffset.dx) / overlaySize;
-        final double d = (bottomLeftOffset.dy - topLeftOffset.dy) / overlaySize;
-        final e = topLeftOffset.dx;
-        final f = topLeftOffset.dy;
-
-        canvas.transform(Float64List.fromList([
-          a, b, 0, 0, //
-          c, d, 0, 0, //
-          0, 0, 1, 0, //
-          e, f, 0, 1, //
-        ]));
+        canvas.transform(frame.qrLocation!.toTransformationMatrix(overlaySize));
 
         canvas.drawImage(overlayImage, Offset.zero, Paint());
       }
