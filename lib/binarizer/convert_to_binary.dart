@@ -29,14 +29,7 @@ class Matrix {
   }
 }
 
-class BinarizedMatrix {
-  final BitMatrix binarized;
-  final BitMatrix? inverted;
-
-  BinarizedMatrix({required this.binarized, this.inverted});
-}
-
-BinarizedMatrix binarize(Uint8List data, int width, int height,
+BitMatrix convertToBinary(Uint8List data, int width, int height,
     {bool returnInverted = false}) {
   if (data.length != width * height * 4) {
     throw Exception("Malformed data passed to binarizer.");
@@ -108,10 +101,7 @@ BinarizedMatrix binarize(Uint8List data, int width, int height,
   }
 
   final binarized = BitMatrix.createEmpty(width, height);
-  BitMatrix? inverted;
-  if (returnInverted) {
-    inverted = BitMatrix.createEmpty(width, height);
-  }
+
   for (int verticalRegion = 0;
       verticalRegion < verticalRegionCount;
       verticalRegion++) {
@@ -132,16 +122,14 @@ BinarizedMatrix binarize(Uint8List data, int width, int height,
           final x = hortizontalRegion * REGION_SIZE + xRegion;
           final y = verticalRegion * REGION_SIZE + yRegion;
           final lum = greyscalePixels.get(x, y);
-          binarized.set(x, y, lum <= threshold);
           if (returnInverted) {
-            inverted!.set(x, y, !(lum <= threshold));
+            binarized.set(x, y, !(lum <= threshold));
+          } else {
+            binarized.set(x, y, lum <= threshold);
           }
         }
       }
     }
   }
-  if (returnInverted) {
-    return BinarizedMatrix(binarized: binarized, inverted: inverted);
-  }
-  return BinarizedMatrix(binarized: binarized);
+  return binarized;
 }

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
-import 'package:qr_code_vision/binarizer/binarizer.dart';
+import 'package:qr_code_vision/binarizer/convert_to_binary.dart';
 import 'package:qr_code_vision/entities/bit_matrix.dart';
 
 Image bitMatrixToImage(BitMatrix matrix) {
@@ -23,7 +23,7 @@ Image bitMatrixToImage(BitMatrix matrix) {
 
 BitMatrix loadMatrix(String path) {
   final image = decodeImage(File(path).readAsBytesSync())!;
-  return binarize(image.getBytes(), image.width, image.height).binarized;
+  return convertToBinary(image.getBytes(), image.width, image.height);
 }
 
 BitMatrix loadBinarized(String path) {
