@@ -1,11 +1,14 @@
 import 'dart:typed_data';
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 
 class BitMatrix {
   final int width;
   final int height;
   final Uint8ClampedList _data;
 
-  static createEmpty(int width, int height) {
+  static BitMatrix createEmpty(int width, int height) {
     return BitMatrix(Uint8ClampedList(width * height), width);
   }
 
@@ -29,4 +32,16 @@ class BitMatrix {
       }
     }
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BitMatrix &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height &&
+          listEquals(_data, other._data);
+
+  @override
+  int get hashCode => hashValues(width, height, hashList(_data));
 }
