@@ -5,24 +5,16 @@ homepage: https://github.com/alessandrodiano/qr_code_vision
 
 environment:
   sdk: ">=2.15.0 <3.0.0"
-  flutter: ">=1.17.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
   image: ^3.1.0
-  js: ^0.6.3
   collection: ^1.15.0
-  linalg: ^0.4.0
   dart_reed_solomon: ^0.1.0+2
+  equatable: ^2.0.3
 
 dependency_overrides:
   dart_reed_solomon:
     git: https://github.com/alessandrodiano/reed_solomon.git
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^1.0.0
-
-flutter:
+  test: ^1.20.1

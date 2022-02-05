@@ -64,10 +64,10 @@ class _MyHomePageState extends State<MyHomePage> {
   late CameraController _cameraController;
 
   final _frameStreamController = StreamController<PreviewFrame>();
-  final locator = QrLocator();
 
   bool _showDebugOverlay = true;
   bool _showImageOverlay = false;
+  final qrCode = QrCode();
 
   @override
   void initState() {
@@ -152,8 +152,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _processFrame(CameraImage image) async {
     try {
       final bytes = image.planes[0].bytes;
-      final qrLocation =
-          locator.locate(convertToBinary(bytes, image.width, image.height));
+
+      qrCode.scanRgbaBytes(bytes, image.width, image.height);
 
       final completer = Completer();
       ui.decodeImageFromPixels(
@@ -167,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _frameStreamController.add(
         PreviewFrame(
           image: await completer.future,
-          qrLocation: qrLocation,
+          qrLocation: qrCode.location,
         ),
       );
     } catch (e) {

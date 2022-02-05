@@ -6,9 +6,9 @@ import '../entities/bit_matrix.dart';
 import 'count_black_white_run.dart';
 
 QrDimension? computeQrDimension({
-  required final Position topLeft,
-  required final Position topRight,
-  required final Position bottomLeft,
+  required final Position<double> topLeft,
+  required final Position<double> topRight,
+  required final Position<double> bottomLeft,
   required final BitMatrix matrix,
 }) {
   // Compute the size of finder patterns along multiple directions

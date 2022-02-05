@@ -1,7 +1,7 @@
 import '../entities/bit_matrix.dart';
 import '../entities/position.dart';
 
-Position blackAreaCenter(BitMatrix matrix, Position p) {
+Position<double> blackAreaCenter(BitMatrix matrix, Position<double> p) {
   int leftX = (p.x).round();
   while (matrix.get(leftX, (p.y).round())) {
     leftX--;
@@ -22,5 +22,5 @@ Position blackAreaCenter(BitMatrix matrix, Position p) {
   }
   final y = (topY + bottomY) / 2;
 
-  return Position(x, y);
+  return Position<double>(x, y);
 }

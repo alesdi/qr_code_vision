@@ -4,9 +4,9 @@ import '../entities/position.dart';
 
 /// A set of finder patterns that identify the position of a QR code
 class FinderPatternSet {
-  final Position topRight;
-  final Position topLeft;
-  final Position bottomLeft;
+  final Position<double> topRight;
+  final Position<double> topLeft;
+  final Position<double> bottomLeft;
 
   FinderPatternSet({
     required this.topRight,
@@ -14,7 +14,7 @@ class FinderPatternSet {
     required this.bottomLeft,
   });
 
-  factory FinderPatternSet.fromPoints(final Set<Position> points) {
+  factory FinderPatternSet.fromPoints(final Set<Position<double>> points) {
     assert(points.length == 3,
         "A Finder Pattern Set must have exactly 3 points. ${points.length} were given.");
     // The patterns form the vertices of a right triangle.

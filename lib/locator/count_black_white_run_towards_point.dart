@@ -4,10 +4,10 @@
 import 'package:qr_code_vision/entities/bit_matrix.dart';
 import 'package:qr_code_vision/entities/position.dart';
 
-List<double> countBlackWhiteRunTowardsPoint(final Position origin,
-    final Position end, final BitMatrix matrix, final int length) {
-  final List<Position> switchPoints = [
-    Position(origin.x.floorToDouble(), origin.y.floorToDouble())
+List<double> countBlackWhiteRunTowardsPoint(final Position<double> origin,
+    final Position<double> end, final BitMatrix matrix, final int length) {
+  final List<Position<double>> switchPoints = [
+    Position<double>(origin.x.floorToDouble(), origin.y.floorToDouble())
   ];
   final steep = (end.y - origin.y).abs() > (end.x - origin.x).abs();
 
@@ -43,7 +43,7 @@ List<double> countBlackWhiteRunTowardsPoint(final Position origin,
     final realY = steep ? x : y;
     if (matrix.get(realX, realY) != currentPixel) {
       currentPixel = !currentPixel;
-      switchPoints.add(Position(realX.toDouble(), realY.toDouble()));
+      switchPoints.add(Position<double>(realX.toDouble(), realY.toDouble()));
       if (switchPoints.length == length + 1) {
         break;
       }

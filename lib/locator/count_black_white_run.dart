@@ -7,8 +7,8 @@ import 'package:qr_code_vision/entities/position.dart';
 import 'count_black_white_run_towards_point.dart';
 
 List<double> countBlackWhiteRun({
-  required final Position origin,
-  required final Position end,
+  required final Position<double> origin,
+  required final Position<double> end,
   required final BitMatrix matrix,
   required final int length,
 }) {
@@ -24,7 +24,7 @@ List<double> countBlackWhiteRun({
 
   final awayFromEnd = countBlackWhiteRunTowardsPoint(
     origin,
-    Position(origin.x - run, origin.y - rise),
+    Position<double>(origin.x - run, origin.y - rise),
     matrix,
     (length / 2).ceil(),
   );

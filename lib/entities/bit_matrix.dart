@@ -1,9 +1,8 @@
 import 'dart:typed_data';
-import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
+import 'package:equatable/equatable.dart';
 
-class BitMatrix {
+class BitMatrix extends Equatable {
   final int width;
   final int height;
   final Uint8ClampedList _data;
@@ -34,14 +33,5 @@ class BitMatrix {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BitMatrix &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          listEquals(_data, other._data);
-
-  @override
-  int get hashCode => hashValues(width, height, hashList(_data));
+  List<Object?> get props => [_data, width, height];
 }

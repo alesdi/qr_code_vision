@@ -2,21 +2,21 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_code_vision/decoder/decode_data.dart';
 import 'package:qr_code_vision/decoder/decoder.dart';
 import 'package:qr_code_vision/entities/bit_matrix.dart';
+import 'package:test/test.dart';
 
 import 'helpers.dart';
 
 void main() {
-  const imagesPath = "./test/decoder-test-data/";
+  const imagesPath = "./test/decoder_test_data/";
 
   test('decodes a numeric code', () {
     final data = loadBinarized("$imagesPath/numeric.png");
     expect(
       decode(data),
-      DecodedQr(
+      QrContent(
         text: "123456789",
         bytes: [49, 50, 51, 52, 53, 54, 55, 56, 57],
         chunks: [Chunk(type: Mode.numeric, text: "123456789")],
@@ -29,7 +29,7 @@ void main() {
     final data = loadBinarized("$imagesPath/alphanumeric.png");
     expect(
       decode(data),
-      DecodedQr(
+      QrContent(
         text: "ABCD1234",
         bytes: [65, 66, 67, 68, 49, 50, 51, 52],
         chunks: [Chunk(type: Mode.alphanumeric, text: "ABCD1234")],
@@ -42,7 +42,7 @@ void main() {
     final data = loadBinarized("$imagesPath/byte.png");
     expect(
       decode(data),
-      DecodedQr(
+      QrContent(
         text: "Test",
         bytes: [84, 101, 115, 116],
         chunks: [
@@ -56,7 +56,7 @@ void main() {
   test('decodes a kanji code', () {
     final data = loadBinarized("$imagesPath/kanji.png");
     final actual = decode(data);
-    final expected = DecodedQr(
+    final expected = QrContent(
       text: "テスト",
       bytes: [131, 101, 131, 88, 131, 103],
       chunks: [
@@ -74,7 +74,7 @@ void main() {
   test('decodes a mixed code', () {
     final data = loadBinarized("$imagesPath/mixed.png");
     final actual = decode(data);
-    final expected = DecodedQr(
+    final expected = QrContent(
       text: "123456789ABCD1234Testテスト",
       bytes: [
         49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 49, 50, 51, 52, //
@@ -115,7 +115,7 @@ void main() {
   test('Supports ECI chunks', () {
     final data = loadBinarized("$imagesPath/eci.png");
     final actual = decode(data);
-    final expected = DecodedQr(
+    final expected = QrContent(
       text: "7948,328,1019,149,12,12,15,4,14,11,32,4",
       bytes: [
         55, 57, 52, 56, 44, 51, 50, 56, 44, 49, 48, 49, 57, 44, 49, 52, //
@@ -145,7 +145,7 @@ void main() {
   test('Extracts a QR code that is missing the termination byte', () {
     final data = loadBinarized("$imagesPath/no-termination-byte.png");
     final actual = decode(data);
-    final expected = DecodedQr(
+    final expected = QrContent(
       text: "1788c74b1c9262866c2071b65df7bfcb7911c2b064c931b580515c2d9d2cd7f8",
       bytes: [
         49, 55, 56, 56, 99, 55, 52, 98, 49, 99, 57, 50, 54, 50, 56, //

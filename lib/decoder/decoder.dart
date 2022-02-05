@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:dart_reed_solomon/dart_reed_solomon.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:qr_code_vision/decoder/version.dart';
+import 'package:qr_code_vision/entities/position.dart';
 import 'package:qr_code_vision/qr_code_vision.dart';
 
 import 'decode_data.dart';
+import 'format_info_table.dart';
 
 int numBitsDiffering(int x, int y) {
   var z = x ^ y;
@@ -22,78 +22,15 @@ int pushBit(bool bit, int byte) {
   return (byte << 1) | (bit ? 1 : 0);
 }
 
-class FormatInfo {
-  final int errorCorrectionLevel;
-  final int dataMask;
-
-  const FormatInfo({
-    required this.errorCorrectionLevel,
-    required this.dataMask,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FormatInfo &&
-          runtimeType == other.runtimeType &&
-          errorCorrectionLevel == other.errorCorrectionLevel &&
-          dataMask == other.dataMask;
-
-  @override
-  int get hashCode => hashValues(errorCorrectionLevel, dataMask);
-}
-
-const FORMAT_INFO_TABLE = {
-  0x5412: FormatInfo(errorCorrectionLevel: 1, dataMask: 0),
-  0x5125: FormatInfo(errorCorrectionLevel: 1, dataMask: 1),
-  0x5E7C: FormatInfo(errorCorrectionLevel: 1, dataMask: 2),
-  0x5B4B: FormatInfo(errorCorrectionLevel: 1, dataMask: 3),
-  0x45F9: FormatInfo(errorCorrectionLevel: 1, dataMask: 4),
-  0x40CE: FormatInfo(errorCorrectionLevel: 1, dataMask: 5),
-  0x4F97: FormatInfo(errorCorrectionLevel: 1, dataMask: 6),
-  0x4AA0: FormatInfo(errorCorrectionLevel: 1, dataMask: 7),
-  0x77C4: FormatInfo(errorCorrectionLevel: 0, dataMask: 0),
-  0x72F3: FormatInfo(errorCorrectionLevel: 0, dataMask: 1),
-  0x7DAA: FormatInfo(errorCorrectionLevel: 0, dataMask: 2),
-  0x789D: FormatInfo(errorCorrectionLevel: 0, dataMask: 3),
-  0x662F: FormatInfo(errorCorrectionLevel: 0, dataMask: 4),
-  0x6318: FormatInfo(errorCorrectionLevel: 0, dataMask: 5),
-  0x6C41: FormatInfo(errorCorrectionLevel: 0, dataMask: 6),
-  0x6976: FormatInfo(errorCorrectionLevel: 0, dataMask: 7),
-  0x1689: FormatInfo(errorCorrectionLevel: 3, dataMask: 0),
-  0x13BE: FormatInfo(errorCorrectionLevel: 3, dataMask: 1),
-  0x1CE7: FormatInfo(errorCorrectionLevel: 3, dataMask: 2),
-  0x19D0: FormatInfo(errorCorrectionLevel: 3, dataMask: 3),
-  0x0762: FormatInfo(errorCorrectionLevel: 3, dataMask: 4),
-  0x0255: FormatInfo(errorCorrectionLevel: 3, dataMask: 5),
-  0x0D0C: FormatInfo(errorCorrectionLevel: 3, dataMask: 6),
-  0x083B: FormatInfo(errorCorrectionLevel: 3, dataMask: 7),
-  0x355F: FormatInfo(errorCorrectionLevel: 2, dataMask: 0),
-  0x3068: FormatInfo(errorCorrectionLevel: 2, dataMask: 1),
-  0x3F31: FormatInfo(errorCorrectionLevel: 2, dataMask: 2),
-  0x3A06: FormatInfo(errorCorrectionLevel: 2, dataMask: 3),
-  0x24B4: FormatInfo(errorCorrectionLevel: 2, dataMask: 4),
-  0x2183: FormatInfo(errorCorrectionLevel: 2, dataMask: 5),
-  0x2EDA: FormatInfo(errorCorrectionLevel: 2, dataMask: 6),
-  0x2BED: FormatInfo(errorCorrectionLevel: 2, dataMask: 7),
-};
-
-class IntPosition {
-  final int x;
-  final int y;
-
-  IntPosition(this.x, this.y);
-}
-
 final dataMasks = [
-  (IntPosition p) => ((p.y + p.x) % 2) == 0,
-  (IntPosition p) => (p.y % 2) == 0,
-  (IntPosition p) => p.x % 3 == 0,
-  (IntPosition p) => (p.y + p.x) % 3 == 0,
-  (IntPosition p) => ((p.y / 2).floor() + (p.x / 3).floor()) % 2 == 0,
-  (IntPosition p) => ((p.x * p.y) % 2) + ((p.x * p.y) % 3) == 0,
-  (IntPosition p) => ((((p.y * p.x) % 2) + (p.y * p.x) % 3) % 2) == 0,
-  (IntPosition p) => ((((p.y + p.x) % 2) + (p.y * p.x) % 3) % 2) == 0,
+  (Position<int> p) => ((p.y + p.x) % 2) == 0,
+  (Position<int> p) => (p.y % 2) == 0,
+  (Position<int> p) => p.x % 3 == 0,
+  (Position<int> p) => (p.y + p.x) % 3 == 0,
+  (Position<int> p) => ((p.y / 2).floor() + (p.x / 3).floor()) % 2 == 0,
+  (Position<int> p) => ((p.x * p.y) % 2) + ((p.x * p.y) % 3) == 0,
+  (Position<int> p) => ((((p.y * p.x) % 2) + (p.y * p.x) % 3) % 2) == 0,
+  (Position<int> p) => ((((p.y + p.x) % 2) + (p.y * p.x) % 3) % 2) == 0,
 ];
 
 BitMatrix buildFunctionPatternMask(Version version) {
@@ -151,7 +88,7 @@ List<int> readCodewords(
         if (!functionPatternMask.get(x, y)) {
           bitsRead++;
           var bit = matrix.get(x, y);
-          if (dataMask(IntPosition(x, y))) {
+          if (dataMask(Position<int>(x, y))) {
             bit = !bit;
           }
           currentByte = pushBit(bit, currentByte);
@@ -243,7 +180,7 @@ FormatInfo? readFormatInformation(BitMatrix matrix) {
   }
   double bestDifference = double.infinity;
   FormatInfo? bestFormatInfo;
-  for (var _a in FORMAT_INFO_TABLE.entries) {
+  for (var _a in formatInfoTable.entries) {
     var bits = _a.key, formatInfo = _a.value;
     if (bits == topLeftFormatInfoBits ||
         bits == topRightBottomRightFormatInfoBits) {
@@ -327,7 +264,7 @@ List<DataBlock>? getDataBlocks(
   return dataBlocks;
 }
 
-DecodedQr? decodeMatrix(matrix) {
+QrContent? decodeMatrix(matrix) {
   var version = readVersion(matrix);
   if (version == null) {
     return null;
@@ -361,7 +298,6 @@ DecodedQr? decodeMatrix(matrix) {
         resultBytes[resultIndex++] = correctedBytes[i];
       }
     } catch (e) {
-      debugPrint(e.toString());
       return null;
     }
   }
@@ -372,7 +308,7 @@ DecodedQr? decodeMatrix(matrix) {
   }
 }
 
-DecodedQr? decode(BitMatrix matrix) {
+QrContent? decode(BitMatrix matrix) {
   var result = decodeMatrix(matrix);
   if (result != null) {
     return result;

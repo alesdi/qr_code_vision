@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 
-import 'BitStream.dart';
+import 'bit_stream.dart';
 import 'shift_jis_table.dart';
 
 class Chunk {
@@ -21,7 +21,7 @@ class Chunk {
           runtimeType == other.runtimeType &&
           type == other.type &&
           text == other.text &&
-          listEquals(bytes, other.bytes) &&
+          ListEquality().equals(bytes, other.bytes) &&
           assignmentNumber == other.assignmentNumber;
 
   @override
@@ -32,13 +32,13 @@ class Chunk {
       assignmentNumber.hashCode;
 }
 
-class DecodedQr {
+class QrContent {
   String text;
   List<int> bytes;
   List<Chunk> chunks;
   int version;
 
-  DecodedQr(
+  QrContent(
       {required this.text,
       required this.bytes,
       required this.chunks,
@@ -47,11 +47,11 @@ class DecodedQr {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is DecodedQr &&
+      other is QrContent &&
           runtimeType == other.runtimeType &&
           text == other.text &&
-          listEquals(bytes, other.bytes) &&
-          listEquals(chunks, other.chunks) &&
+          ListEquality().equals(bytes, other.bytes) &&
+          ListEquality().equals(chunks, other.chunks) &&
           version == other.version;
 
   @override
@@ -261,7 +261,7 @@ DecodedData decodeKanji(BitStream stream, int size) {
   return DecodedData(text: text, bytes: bytes);
 }
 
-DecodedQr? decodeData(Uint8ClampedList data, int version) {
+QrContent? decodeData(Uint8ClampedList data, int version) {
   final stream = BitStream(data);
 
   // There are 3 'sizes' based on the version. 1-9 is small (0), 10-26 is medium (1) and 27-40 is large (2).
@@ -271,7 +271,7 @@ DecodedQr? decodeData(Uint8ClampedList data, int version) {
           ? 1
           : 2;
 
-  DecodedQr result = DecodedQr(
+  QrContent result = QrContent(
     text: "",
     bytes: [],
     chunks: [],

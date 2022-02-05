@@ -1,22 +1,26 @@
 import 'dart:math';
-import 'dart:ui';
 
-class Position {
-  final double x;
-  final double y;
-
+class Position<T extends num> {
+  T x;
+  T y;
   Position(this.x, this.y);
 
-  Position clone() => Position(x, y);
+  Position<T> clone() {
+    return Position<T>(x, y);
+  }
 
-  double distanceTo(final Position position) {
-    return sqrt(pow(position.x - x, 2) + pow(position.y - y, 2));
+  double distanceTo(Position other) {
+    return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
+  }
+
+  Position<double> toDouble() {
+    return Position<double>(x.toDouble(), y.toDouble());
   }
 
   @override
   bool operator ==(Object other) =>
-      other is Position && x == other.x && y == other.y;
+      other is Position<T> && x == other.x && y == other.y;
 
   @override
-  int get hashCode => hashValues(x, y);
+  int get hashCode => x.hashCode ^ y.hashCode;
 }

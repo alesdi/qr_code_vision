@@ -1,22 +1,22 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_code_vision/entities/position.dart';
 import 'package:qr_code_vision/entities/qr_location.dart';
 import 'package:qr_code_vision/extractor/extractor.dart';
+import 'package:test/test.dart';
 
 import 'helpers.dart';
 
 void main() {
-  const imagesPath = "./test/extractor-test-data/";
+  const imagesPath = "./test/extractor_test_data/";
   test('is a no-op when applied to an already extracted code', () {
     final data = loadBinarized("$imagesPath/output.png");
 
     final extracted = extract(
         data,
         QrLocation(
-          topLeft: Position(3.5, 3.5),
-          bottomLeft: Position(3.5, 21.5),
-          topRight: Position(21.5, 3.5),
-          alignmentPattern: Position(18.5, 18.5),
+          topLeft: Position<double>(3.5, 3.5),
+          bottomLeft: Position<double>(3.5, 21.5),
+          topRight: Position<double>(21.5, 3.5),
+          alignmentPattern: Position<double>(18.5, 18.5),
           dimension: QrDimension(size: 25, module: 1),
         ));
 
@@ -30,10 +30,10 @@ void main() {
     final extracted = extract(
         input,
         QrLocation(
-          topLeft: Position(56, 94),
-          bottomLeft: Position(88, 268),
-          topRight: Position(275, 175),
-          alignmentPattern: Position(197, 315),
+          topLeft: Position<double>(56, 94),
+          bottomLeft: Position<double>(88, 268),
+          topRight: Position<double>(275, 175),
+          alignmentPattern: Position<double>(197, 315),
           dimension: QrDimension(size: 25, module: 1),
         ));
 

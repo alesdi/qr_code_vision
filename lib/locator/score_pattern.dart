@@ -32,23 +32,24 @@ BlackWhiteRunScore scoreBlackWhiteRun(
 // Takes an X,Y point and an array of sizes and scores the point against those ratios.
 // For example for a finder pattern takes the ratio list of 1:1:3:1:1 and checks horizontal, vertical and diagonal ratios
 // against that.
-double scorePattern(Position point, List<double> ratios, BitMatrix matrix) {
+double scorePattern(
+    Position<double> point, List<double> ratios, BitMatrix matrix) {
   try {
     final horizontalRun = countBlackWhiteRun(
       origin: point,
-      end: Position(-1, point.y),
+      end: Position<double>(-1, point.y),
       matrix: matrix,
       length: ratios.length,
     );
 
     final verticalRun = countBlackWhiteRun(
       origin: point,
-      end: Position(point.x, -1),
+      end: Position<double>(point.x, -1),
       matrix: matrix,
       length: ratios.length,
     );
 
-    final topLeftPoint = Position(
+    final topLeftPoint = Position<double>(
       max(0, point.x - point.y) - 1,
       max(0, point.y - point.x) - 1,
     );
@@ -60,7 +61,7 @@ double scorePattern(Position point, List<double> ratios, BitMatrix matrix) {
       length: ratios.length,
     );
 
-    final bottomLeftPoint = Position(
+    final bottomLeftPoint = Position<double>(
       min(matrix.width, point.x + point.y) + 1,
       min(matrix.height, point.y + point.x) + 1,
     );
