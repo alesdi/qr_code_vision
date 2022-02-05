@@ -1,8 +1,8 @@
 class Version {
   final int? infoBits;
   final int versionNumber;
-  final Iterable<int> alignmentPatternCenters;
-  final Iterable<ErrorCorrectionLevel> errorCorrectionLevels;
+  final List<int> alignmentPatternCenters;
+  final List<ErrorCorrectionLevel> errorCorrectionLevels;
 
   const Version({
     this.infoBits,
@@ -14,7 +14,7 @@ class Version {
 
 class ErrorCorrectionLevel {
   final int ecCodewordsPerBlock;
-  final Iterable<ErrorCorrectionBlock> ecBlocks;
+  final List<ErrorCorrectionBlock> ecBlocks;
 
   const ErrorCorrectionLevel({
     required this.ecCodewordsPerBlock,
