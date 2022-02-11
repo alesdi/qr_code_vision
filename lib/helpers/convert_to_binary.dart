@@ -1,53 +1,38 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../entities/bit_matrix.dart';
+import 'bit_matrix.dart';
 
 const REGION_SIZE = 8;
 const MIN_DYNAMIC_RANGE = 24;
 
-int numBetween(int value, int min, int max) {
-  return value < min
-      ? min
-      : value > max
-          ? max
-          : value;
-}
-
-// Like BitMatrix but accepts arbitry Uint8 values
-class Matrix {
-  final Uint8ClampedList data;
-  final int width;
-  Matrix(this.width, int height) : data = Uint8ClampedList(width * height);
-
-  int get(int x, int y) {
-    return data[y * width + x];
-  }
-
-  void set(int x, int y, int value) {
-    data[y * width + x] = value;
-  }
-}
-
-BitMatrix convertToBinary(Uint8List data, int width, int height,
-    {bool returnInverted = false}) {
+/// Convert a List of image bytes into a 2D matrix of bits representing
+/// black and white pixels
+BitMatrix convertToBinary(
+  Uint8List data,
+  int width,
+  int height, {
+  bool returnInverted = false,
+}) {
   if (data.length != width * height * 4) {
-    throw Exception("Malformed data passed to binarizer.");
+    throw Exception("Malformed data passed to convertToBinary.");
   }
-  // Convert image to greyscale
-  final greyscalePixels = Matrix(width, height);
+
+  // Convert image to grey scale
+  final greyScalePixels = _GrayScaleMatrix(width, height);
   for (int x = 0; x < width; x++) {
     for (int y = 0; y < height; y++) {
       final r = data[((y * width + x) * 4) + 0];
       final g = data[((y * width + x) * 4) + 1];
       final b = data[((y * width + x) * 4) + 2];
-      greyscalePixels.set(x, y, (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt());
+      greyScalePixels.set(x, y, (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt());
     }
   }
   final horizontalRegionCount = (width / REGION_SIZE).floor();
   final verticalRegionCount = (height / REGION_SIZE).floor();
 
-  final blackPoints = Matrix(horizontalRegionCount, verticalRegionCount);
+  final blackPoints =
+      _GrayScaleMatrix(horizontalRegionCount, verticalRegionCount);
   for (int verticalRegion = 0;
       verticalRegion < verticalRegionCount;
       verticalRegion++) {
@@ -59,7 +44,7 @@ BitMatrix convertToBinary(Uint8List data, int width, int height,
       double max = 0;
       for (int y = 0; y < REGION_SIZE; y++) {
         for (int x = 0; x < REGION_SIZE; x++) {
-          final pixelLumosity = greyscalePixels
+          final pixelLumosity = greyScalePixels
               .get(hortizontalRegion * REGION_SIZE + x,
                   verticalRegion * REGION_SIZE + y)
               .toDouble();
@@ -108,8 +93,8 @@ BitMatrix convertToBinary(Uint8List data, int width, int height,
     for (int hortizontalRegion = 0;
         hortizontalRegion < horizontalRegionCount;
         hortizontalRegion++) {
-      final left = numBetween(hortizontalRegion, 2, horizontalRegionCount - 3);
-      final top = numBetween(verticalRegion, 2, verticalRegionCount - 3);
+      final left = _isBetween(hortizontalRegion, 2, horizontalRegionCount - 3);
+      final top = _isBetween(verticalRegion, 2, verticalRegionCount - 3);
       int sum = 0;
       for (int xRegion = -2; xRegion <= 2; xRegion++) {
         for (int yRegion = -2; yRegion <= 2; yRegion++) {
@@ -121,7 +106,7 @@ BitMatrix convertToBinary(Uint8List data, int width, int height,
         for (int yRegion = 0; yRegion < REGION_SIZE; yRegion++) {
           final x = hortizontalRegion * REGION_SIZE + xRegion;
           final y = verticalRegion * REGION_SIZE + yRegion;
-          final lum = greyscalePixels.get(x, y);
+          final lum = greyScalePixels.get(x, y);
           if (returnInverted) {
             binarized.set(x, y, !(lum <= threshold));
           } else {
@@ -132,4 +117,27 @@ BitMatrix convertToBinary(Uint8List data, int width, int height,
     }
   }
   return binarized;
+}
+
+int _isBetween(int value, int min, int max) {
+  return value < min
+      ? min
+      : value > max
+          ? max
+          : value;
+}
+
+class _GrayScaleMatrix {
+  final Uint8ClampedList data;
+  final int width;
+  _GrayScaleMatrix(this.width, int height)
+      : data = Uint8ClampedList(width * height);
+
+  int get(int x, int y) {
+    return data[y * width + x];
+  }
+
+  void set(int x, int y, int value) {
+    data[y * width + x] = value;
+  }
 }

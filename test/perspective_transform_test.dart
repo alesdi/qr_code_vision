@@ -1,4 +1,4 @@
-import 'package:qr_code_vision/extractor/perspective.dart';
+import 'package:qr_code_vision/helpers/perspective_transform.dart';
 import 'package:test/test.dart';
 
 void main() {

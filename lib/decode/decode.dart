@@ -1,14 +1,32 @@
 import 'dart:typed_data';
 
-import 'package:dart_reed_solomon/dart_reed_solomon.dart';
-import 'package:qr_code_vision/decoder/version.dart';
-import 'package:qr_code_vision/entities/position.dart';
-import 'package:qr_code_vision/qr_code_vision.dart';
+import 'package:dart_reed_solomon_nullsafety/dart_reed_solomon_nullsafety.dart';
 
+import '../entities/position.dart';
+import '../helpers/bit_matrix.dart';
 import 'decode_data.dart';
 import 'format_info_table.dart';
+import 'version.dart';
 
-int numBitsDiffering(int x, int y) {
+/// Decodes a Qr code given the matrix of its raw bits.
+QrContent? decode(BitMatrix matrix) {
+  var result = _readContent(matrix);
+  if (result != null) {
+    return result;
+  }
+  // Decoding didn't work, try mirroring the QR across the topLeft -> bottomRight line.
+  for (var x = 0; x < matrix.width; x++) {
+    for (var y = x + 1; y < matrix.height; y++) {
+      if (matrix.get(x, y) != matrix.get(y, x)) {
+        matrix.set(x, y, !matrix.get(x, y));
+        matrix.set(y, x, !matrix.get(y, x));
+      }
+    }
+  }
+  return _readContent(matrix);
+}
+
+int _numBitsDiffering(int x, int y) {
   var z = x ^ y;
   var bitCount = 0;
   while (z != 0x0) {
@@ -18,11 +36,11 @@ int numBitsDiffering(int x, int y) {
   return bitCount;
 }
 
-int pushBit(bool bit, int byte) {
+int _pushBit(bool bit, int byte) {
   return (byte << 1) | (bit ? 1 : 0);
 }
 
-final dataMasks = [
+final _dataMasks = [
   (Position<int> p) => ((p.y + p.x) % 2) == 0,
   (Position<int> p) => (p.y % 2) == 0,
   (Position<int> p) => p.x % 3 == 0,
@@ -33,7 +51,7 @@ final dataMasks = [
   (Position<int> p) => ((((p.y + p.x) % 2) + (p.y * p.x) % 3) % 2) == 0,
 ];
 
-BitMatrix buildFunctionPatternMask(Version version) {
+BitMatrix _buildFunctionPatternMask(Version version) {
   var dimension = 17 + 4 * version.versionNumber;
   var matrix = BitMatrix.createEmpty(dimension, dimension);
   matrix.setRegion(
@@ -66,11 +84,11 @@ BitMatrix buildFunctionPatternMask(Version version) {
   return matrix;
 }
 
-List<int> readCodewords(
+List<int> _readCodewords(
     BitMatrix matrix, Version version, FormatInfo formatInfo) {
-  final dataMask = dataMasks[formatInfo.dataMask];
+  final dataMask = _dataMasks[formatInfo.dataMask];
   final dimension = matrix.height;
-  final functionPatternMask = buildFunctionPatternMask(version);
+  final functionPatternMask = _buildFunctionPatternMask(version);
   final codewords = <int>[];
   int currentByte = 0;
   int bitsRead = 0;
@@ -91,7 +109,7 @@ List<int> readCodewords(
           if (dataMask(Position<int>(x, y))) {
             bit = !bit;
           }
-          currentByte = pushBit(bit, currentByte);
+          currentByte = _pushBit(bit, currentByte);
           if (bitsRead == 8) {
             // Whole bytes
             codewords.add(currentByte);
@@ -106,7 +124,7 @@ List<int> readCodewords(
   return codewords;
 }
 
-Version? readVersion(BitMatrix matrix) {
+Version? _readVersion(BitMatrix matrix) {
   int dimension = matrix.height;
   int provisionalVersion = ((dimension - 17) / 4).floor();
   if (provisionalVersion <= 6) {
@@ -116,13 +134,13 @@ Version? readVersion(BitMatrix matrix) {
   var topRightVersionBits = 0;
   for (var y = 5; y >= 0; y--) {
     for (var x = dimension - 9; x >= dimension - 11; x--) {
-      topRightVersionBits = pushBit(matrix.get(x, y), topRightVersionBits);
+      topRightVersionBits = _pushBit(matrix.get(x, y), topRightVersionBits);
     }
   }
   var bottomLeftVersionBits = 0;
   for (var x = 5; x >= 0; x--) {
     for (var y = dimension - 9; y >= dimension - 11; y--) {
-      bottomLeftVersionBits = pushBit(matrix.get(x, y), bottomLeftVersionBits);
+      bottomLeftVersionBits = _pushBit(matrix.get(x, y), bottomLeftVersionBits);
     }
   }
   double bestDifference = double.infinity;
@@ -134,12 +152,13 @@ Version? readVersion(BitMatrix matrix) {
       return version;
     }
     var difference =
-        numBitsDiffering(topRightVersionBits, version.infoBits ?? 0);
+        _numBitsDiffering(topRightVersionBits, version.infoBits ?? 0);
     if (difference < bestDifference) {
       bestVersion = version;
       bestDifference = difference.toDouble();
     }
-    difference = numBitsDiffering(bottomLeftVersionBits, version.infoBits ?? 0);
+    difference =
+        _numBitsDiffering(bottomLeftVersionBits, version.infoBits ?? 0);
     if (difference < bestDifference) {
       bestVersion = version;
       bestDifference = difference.toDouble();
@@ -152,18 +171,18 @@ Version? readVersion(BitMatrix matrix) {
   }
 }
 
-FormatInfo? readFormatInformation(BitMatrix matrix) {
+FormatInfo? _readFormatInformation(BitMatrix matrix) {
   int topLeftFormatInfoBits = 0;
   for (int x = 0; x <= 8; x++) {
     if (x != 6) {
       // Skip timing pattern bit
-      topLeftFormatInfoBits = pushBit(matrix.get(x, 8), topLeftFormatInfoBits);
+      topLeftFormatInfoBits = _pushBit(matrix.get(x, 8), topLeftFormatInfoBits);
     }
   }
   for (int y = 7; y >= 0; y--) {
     if (y != 6) {
       // Skip timing pattern bit
-      topLeftFormatInfoBits = pushBit(matrix.get(8, y), topLeftFormatInfoBits);
+      topLeftFormatInfoBits = _pushBit(matrix.get(8, y), topLeftFormatInfoBits);
     }
   }
   int dimension = matrix.height;
@@ -171,12 +190,12 @@ FormatInfo? readFormatInformation(BitMatrix matrix) {
   for (int y = dimension - 1; y >= dimension - 7; y--) {
     // bottom left
     topRightBottomRightFormatInfoBits =
-        pushBit(matrix.get(8, y), topRightBottomRightFormatInfoBits);
+        _pushBit(matrix.get(8, y), topRightBottomRightFormatInfoBits);
   }
   for (int x = dimension - 8; x < dimension; x++) {
     // top right
     topRightBottomRightFormatInfoBits =
-        pushBit(matrix.get(x, 8), topRightBottomRightFormatInfoBits);
+        _pushBit(matrix.get(x, 8), topRightBottomRightFormatInfoBits);
   }
   double bestDifference = double.infinity;
   FormatInfo? bestFormatInfo;
@@ -186,14 +205,14 @@ FormatInfo? readFormatInformation(BitMatrix matrix) {
         bits == topRightBottomRightFormatInfoBits) {
       return formatInfo;
     }
-    var difference = numBitsDiffering(topLeftFormatInfoBits, bits);
+    var difference = _numBitsDiffering(topLeftFormatInfoBits, bits);
     if (difference < bestDifference) {
       bestFormatInfo = formatInfo;
       bestDifference = difference.toDouble();
     }
     if (topLeftFormatInfoBits != topRightBottomRightFormatInfoBits) {
       // also try the other option
-      difference = numBitsDiffering(topRightBottomRightFormatInfoBits, bits);
+      difference = _numBitsDiffering(topRightBottomRightFormatInfoBits, bits);
       if (difference < bestDifference) {
         bestFormatInfo = formatInfo;
         bestDifference = difference.toDouble();
@@ -207,21 +226,21 @@ FormatInfo? readFormatInformation(BitMatrix matrix) {
   return null;
 }
 
-class DataBlock {
+class _DataBlock {
   final int numDataCodewords;
   final List<int> codewords;
 
-  const DataBlock({required this.numDataCodewords, required this.codewords});
+  const _DataBlock({required this.numDataCodewords, required this.codewords});
 }
 
-List<DataBlock>? getDataBlocks(
+List<_DataBlock>? _getDataBlocks(
     List<int> codewords, Version version, int ecLevel) {
   ErrorCorrectionLevel ecInfo = version.errorCorrectionLevels[ecLevel];
-  List<DataBlock> dataBlocks = [];
+  List<_DataBlock> dataBlocks = [];
   var totalCodewords = 0;
   for (var block in ecInfo.ecBlocks) {
     for (var i = 0; i < block.numBlocks; i++) {
-      dataBlocks.add(DataBlock(
+      dataBlocks.add(_DataBlock(
           numDataCodewords: block.dataCodewordsPerBlock, codewords: []));
       totalCodewords +=
           block.dataCodewordsPerBlock + ecInfo.ecCodewordsPerBlock;
@@ -264,18 +283,18 @@ List<DataBlock>? getDataBlocks(
   return dataBlocks;
 }
 
-QrContent? decodeMatrix(matrix) {
-  var version = readVersion(matrix);
+QrContent? _readContent(matrix) {
+  var version = _readVersion(matrix);
   if (version == null) {
     return null;
   }
-  var formatInfo = readFormatInformation(matrix);
+  var formatInfo = _readFormatInformation(matrix);
   if (formatInfo == null) {
     return null;
   }
-  var codewords = readCodewords(matrix, version, formatInfo);
+  var codewords = _readCodewords(matrix, version, formatInfo);
   var dataBlocks =
-      getDataBlocks(codewords, version, formatInfo.errorCorrectionLevel);
+      _getDataBlocks(codewords, version, formatInfo.errorCorrectionLevel);
   if (dataBlocks == null) {
     return null;
   }
@@ -302,25 +321,8 @@ QrContent? decodeMatrix(matrix) {
     }
   }
   try {
-    return decodeData(resultBytes, version.versionNumber);
+    return readData(resultBytes, version.versionNumber);
   } catch (_a) {
     return null;
   }
-}
-
-QrContent? decode(BitMatrix matrix) {
-  var result = decodeMatrix(matrix);
-  if (result != null) {
-    return result;
-  }
-  // Decoding didn't work, try mirroring the QR across the topLeft -> bottomRight line.
-  for (var x = 0; x < matrix.width; x++) {
-    for (var y = x + 1; y < matrix.height; y++) {
-      if (matrix.get(x, y) != matrix.get(y, x)) {
-        matrix.set(x, y, !matrix.get(x, y));
-        matrix.set(y, x, !matrix.get(y, x));
-      }
-    }
-  }
-  return decodeMatrix(matrix);
 }

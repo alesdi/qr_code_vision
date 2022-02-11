@@ -92,15 +92,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.4"
-  dart_reed_solomon:
+  dart_reed_solomon_nullsafety:
     dependency: transitive
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: c389b0d8c3112b6e667a781914c8bc2506a3f4b3
-      url: "https://github.com/alessandrodiano/reed_solomon.git"
-    source: git
-    version: "0.1.0+2"
+      name: dart_reed_solomon_nullsafety
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.0"
   equatable:
     dependency: transitive
     description:
@@ -213,7 +211,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.1.0"
   quiver:
     dependency: transitive
     description:

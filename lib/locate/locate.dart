@@ -1,20 +1,19 @@
 import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:qr_code_vision/entities/qr_location.dart';
-import 'package:qr_code_vision/locator/score_pattern.dart';
 
-import '../entities/bit_matrix.dart';
 import '../entities/position.dart';
-import 'black_area_center.dart';
-import 'compute_qr_dimension.dart';
-import 'finder_pattern_set.dart';
+import '../entities/qr_location.dart';
+import '../helpers/bit_matrix.dart';
+import 'compute_dimension.dart';
+import 'score_pattern.dart';
 
 const maxFinderPatternsToSearch = 4;
 const minQuadRatio = 0.5;
 const maxQuadRatio = 1.5;
 
-/// Locates and tracks a QR given a BitMatrix representing a binary image.
+/// Locates a QR code given a BitMatrix representing a binary image.
 QrLocation? locate(
   final BitMatrix matrix, {
   final bool recenterLocation = false,
@@ -202,12 +201,12 @@ QrLocation? locate(
     return null;
   }
 
-  final FinderPatternSet orderedFinderPatternGroup =
-      FinderPatternSet.fromPoints(bestFinderPathSet);
+  final _FinderPatternSet orderedFinderPatternGroup =
+      _FinderPatternSet.fromPoints(bestFinderPathSet);
 
   // Now that we've found the three finder patterns we can determine the blockSize and the size of the QR code.
   // We'll use these to help find the alignment pattern but also later when we do the extraction.
-  final dimension = computeQrDimension(
+  final dimension = computeDimension(
     topLeft: orderedFinderPatternGroup.topLeft,
     topRight: orderedFinderPatternGroup.topRight,
     bottomLeft: orderedFinderPatternGroup.bottomLeft,
@@ -276,11 +275,11 @@ QrLocation? locate(
   if (recenterLocation) {
     return QrLocation(
       topRight:
-          blackAreaCenter(matrix, orderedFinderPatternGroup.topRight.clone()),
-      bottomLeft:
-          blackAreaCenter(matrix, orderedFinderPatternGroup.bottomLeft.clone()),
+          _blackAreaCenter(matrix, orderedFinderPatternGroup.topRight.clone()),
+      bottomLeft: _blackAreaCenter(
+          matrix, orderedFinderPatternGroup.bottomLeft.clone()),
       topLeft:
-          blackAreaCenter(matrix, orderedFinderPatternGroup.topLeft.clone()),
+          _blackAreaCenter(matrix, orderedFinderPatternGroup.topLeft.clone()),
       alignmentPattern: alignment.clone(),
       dimension: dimension,
     );
@@ -320,4 +319,80 @@ class _ScoredSizedPosition extends Position<double> {
   Position<double> toPoint() {
     return Position<double>(x, y);
   }
+}
+
+/// A set of finder patterns that identify the position of a QR code
+class _FinderPatternSet {
+  final Position<double> topRight;
+  final Position<double> topLeft;
+  final Position<double> bottomLeft;
+
+  _FinderPatternSet({
+    required this.topRight,
+    required this.topLeft,
+    required this.bottomLeft,
+  });
+
+  factory _FinderPatternSet.fromPoints(final Set<Position<double>> points) {
+    assert(points.length == 3,
+        "A Finder Pattern Set must have exactly 3 points. ${points.length} were given.");
+    // The patterns form the vertices of a right triangle.
+    // Assuming the barcode is not excessively distorted, they can be mapped to
+    // the standard positions (top left, top right, bottom left) based on the
+    // size of the triangle sides.
+    final vertices = points.toList();
+    final oppositeDistances = [
+      vertices[1].distanceTo(vertices[2]),
+      vertices[2].distanceTo(vertices[0]),
+      vertices[0].distanceTo(vertices[1]),
+    ];
+
+    // Extract the top left pattern (the one with the greatest opposite side)
+    final maxDistanceIndex =
+        oppositeDistances.indexOf(oppositeDistances.reduce(max));
+    final topLeft = vertices.removeAt(maxDistanceIndex);
+
+    // The remaining two vertices of the triangle are the top right and bottom
+    // left. The correspondence can be determined by considering the sign of the
+    // cross product of the sides' vectors. Left side x top side must be positive.
+    if (((vertices[0].x - topLeft.x) * (vertices[1].y - topLeft.y)) -
+            ((vertices[0].y - topLeft.y) * (vertices[1].x - topLeft.x)) >
+        0) {
+      return _FinderPatternSet(
+        topRight: vertices[0],
+        topLeft: topLeft,
+        bottomLeft: vertices[1],
+      );
+    } else {
+      return _FinderPatternSet(
+        topRight: vertices[1],
+        topLeft: topLeft,
+        bottomLeft: vertices[0],
+      );
+    }
+  }
+}
+
+Position<double> _blackAreaCenter(BitMatrix matrix, Position<double> p) {
+  int leftX = (p.x).round();
+  while (matrix.get(leftX, (p.y).round())) {
+    leftX--;
+  }
+  int rightX = (p.x).round();
+  while (matrix.get(rightX, (p.y).round())) {
+    rightX++;
+  }
+  final x = (leftX + rightX) / 2;
+
+  int topY = (p.y).round();
+  while (matrix.get((x).round(), topY)) {
+    topY--;
+  }
+  int bottomY = (p.y).round();
+  while (matrix.get((x).round(), bottomY)) {
+    bottomY++;
+  }
+  final y = (topY + bottomY) / 2;
+
+  return Position<double>(x, y);
 }

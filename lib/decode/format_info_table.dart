@@ -1,3 +1,6 @@
+import 'package:equatable/equatable.dart';
+
+/// QR code format information table
 const formatInfoTable = {
   0x5412: FormatInfo(errorCorrectionLevel: 1, dataMask: 0),
   0x5125: FormatInfo(errorCorrectionLevel: 1, dataMask: 1),
@@ -33,7 +36,8 @@ const formatInfoTable = {
   0x2BED: FormatInfo(errorCorrectionLevel: 2, dataMask: 7),
 };
 
-class FormatInfo {
+/// A description of the format information of a Qr code
+class FormatInfo extends Equatable {
   final int errorCorrectionLevel;
   final int dataMask;
 
@@ -43,13 +47,5 @@ class FormatInfo {
   });
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FormatInfo &&
-          runtimeType == other.runtimeType &&
-          errorCorrectionLevel == other.errorCorrectionLevel &&
-          dataMask == other.dataMask;
-
-  @override
-  int get hashCode => errorCorrectionLevel.hashCode ^ dataMask.hashCode;
+  List<Object> get props => [errorCorrectionLevel, dataMask];
 }

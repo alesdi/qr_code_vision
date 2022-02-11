@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:qr_code_vision/decoder/decode_data.dart';
-import 'package:qr_code_vision/decoder/decoder.dart';
-import 'package:qr_code_vision/entities/bit_matrix.dart';
+import 'package:qr_code_vision/decode/decode.dart';
+import 'package:qr_code_vision/decode/decode_data.dart';
+import 'package:qr_code_vision/helpers/bit_matrix.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -19,7 +19,7 @@ void main() {
       QrContent(
         text: "123456789",
         bytes: [49, 50, 51, 52, 53, 54, 55, 56, 57],
-        chunks: [Chunk(type: Mode.numeric, text: "123456789")],
+        chunks: [Chunk(type: ChunkMode.numeric, text: "123456789")],
         version: 1,
       ),
     );
@@ -32,7 +32,7 @@ void main() {
       QrContent(
         text: "ABCD1234",
         bytes: [65, 66, 67, 68, 49, 50, 51, 52],
-        chunks: [Chunk(type: Mode.alphanumeric, text: "ABCD1234")],
+        chunks: [Chunk(type: ChunkMode.alphanumeric, text: "ABCD1234")],
         version: 1,
       ),
     );
@@ -46,7 +46,7 @@ void main() {
         text: "Test",
         bytes: [84, 101, 115, 116],
         chunks: [
-          Chunk(type: Mode.byte, bytes: [84, 101, 115, 116], text: "Test")
+          Chunk(type: ChunkMode.byte, bytes: [84, 101, 115, 116], text: "Test")
         ],
         version: 1,
       ),
@@ -61,7 +61,7 @@ void main() {
       bytes: [131, 101, 131, 88, 131, 103],
       chunks: [
         Chunk(
-          type: Mode.kanji,
+          type: ChunkMode.kanji,
           bytes: [131, 101, 131, 88, 131, 103],
           text: "テスト",
         )
@@ -81,11 +81,11 @@ void main() {
         84, 101, 115, 116, 131, 101, 131, 88, 131, 103
       ],
       chunks: [
-        Chunk(type: Mode.numeric, text: "123456789"),
-        Chunk(type: Mode.alphanumeric, text: "ABCD1234"),
-        Chunk(type: Mode.byte, bytes: [84, 101, 115, 116], text: "Test"),
+        Chunk(type: ChunkMode.numeric, text: "123456789"),
+        Chunk(type: ChunkMode.alphanumeric, text: "ABCD1234"),
+        Chunk(type: ChunkMode.byte, bytes: [84, 101, 115, 116], text: "Test"),
         Chunk(
-            type: Mode.kanji,
+            type: ChunkMode.kanji,
             bytes: [131, 101, 131, 88, 131, 103],
             text: "テスト"),
       ],
@@ -124,11 +124,11 @@ void main() {
       ],
       chunks: [
         Chunk(
-          type: Mode.eci,
+          type: ChunkMode.eci,
           assignmentNumber: 26,
         ),
         Chunk(
-          type: Mode.byte,
+          type: ChunkMode.byte,
           bytes: [
             55, 57, 52, 56, 44, 51, 50, 56, 44, 49, 48, 49, 57, 44, 49, //
             52, 57, 44, 49, 50, 44, 49, 50, 44, 49, 53, 44, 52, 44, 49, 52, //
@@ -155,20 +155,20 @@ void main() {
       ],
       chunks: [
         Chunk(
-          type: Mode.numeric,
+          type: ChunkMode.numeric,
           text: "1788",
         ),
         Chunk(
-          type: Mode.byte,
+          type: ChunkMode.byte,
           bytes: [99, 55, 52, 98, 49, 99],
           text: "c74b1c",
         ),
         Chunk(
-          type: Mode.numeric,
+          type: ChunkMode.numeric,
           text: "9262866",
         ),
         Chunk(
-          type: Mode.byte,
+          type: ChunkMode.byte,
           bytes: [
             99, 50, 48, 55, 49, 98, 54, 53, 100, 102, 55, 98, 102, 99, 98, //
             55, 57, 49, 49, 99, 50, 98, 48, 54, 52, 99, 57, 51, 49, 98
@@ -176,11 +176,11 @@ void main() {
           text: "c2071b65df7bfcb7911c2b064c931b",
         ),
         Chunk(
-          type: Mode.numeric,
+          type: ChunkMode.numeric,
           text: "580515",
         ),
         Chunk(
-          type: Mode.byte,
+          type: ChunkMode.byte,
           bytes: [99, 50, 100, 57, 100, 50, 99, 100, 55, 102, 56],
           text: "c2d9d2cd7f8",
         ),

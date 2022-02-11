@@ -4,12 +4,17 @@ import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:qr_code_vision/entities/position.dart';
 
-class PerspectiveTransform {
+/// A representation of a perspective transformation, that can be applied to
+/// single points. Common linear transformation operations (such as inversion
+/// and composition) are also supported.
+class PerspectiveTransform extends Equatable {
   final _PerspectiveMatrix _matrix;
 
   PerspectiveTransform(List<double> elements)
       : _matrix = _PerspectiveMatrix.fromList(elements);
 
+  /// Creates a [PerspectiveTransform] that transforms a 1x1 square into the
+  /// given quadrilateral, expressed as a list of its vertices.
   factory PerspectiveTransform.fromTransformedSquare(
     List<Position> vertices,
   ) {
@@ -44,6 +49,8 @@ class PerspectiveTransform {
     }
   }
 
+  /// Creates a [PerspectiveTransform] that transforms a given quadrilateral
+  /// into another given quadrilateral, expressed as a list of its vertices.
   factory PerspectiveTransform.fromQuadrilaterals(
     List<Position> originVertices,
     List<Position> destinationVertices,
@@ -55,6 +62,8 @@ class PerspectiveTransform {
     return fromSquareToDestination.compose(fromOriginToSquare);
   }
 
+  /// Creates a [PerspectiveTransform] that is the composition of this
+  /// transformation and a given [other] transformation.
   PerspectiveTransform compose(PerspectiveTransform other) {
     final A = other._matrix.toList();
     final B = _matrix.toList();
@@ -70,6 +79,7 @@ class PerspectiveTransform {
     return PerspectiveTransform(result);
   }
 
+  /// Creates a [PerspectiveTransform] that is the inverse of this
   PerspectiveTransform inverse() {
     final A = _matrix;
 
@@ -97,7 +107,9 @@ class PerspectiveTransform {
     // transpose
   }
 
-  Position<double> call(Position point) {
+  /// Applies this transformation to a given [point] and returns the transformed
+  /// point.
+  Position<double> apply(Position point) {
     final x = point.x.toDouble();
     final y = point.y.toDouble();
     final denominator = _matrix(1, 3) * x + _matrix(2, 3) * y + _matrix(3, 3);
@@ -108,7 +120,7 @@ class PerspectiveTransform {
   }
 
   /// Compute an equivalent 3D perspective matrix (4x4) that can be used to
-  /// transform a canvas.
+  /// transform a canvas or as argument for the Transform widget in Flutter.
   Float64List to3DPerspectiveMatrix() {
     return Float64List.fromList([
       _matrix(1, 1), _matrix(1, 2), 0, _matrix(1, 3), //
@@ -119,14 +131,7 @@ class PerspectiveTransform {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PerspectiveTransform &&
-          runtimeType == other.runtimeType &&
-          _matrix == other._matrix;
-
-  @override
-  int get hashCode => _matrix.hashCode;
+  List<Object?> get props => [_matrix];
 }
 
 class _PerspectiveMatrix extends ListBase<double> with EquatableMixin {

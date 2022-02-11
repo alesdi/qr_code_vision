@@ -1,6 +1,6 @@
 import 'package:qr_code_vision/entities/position.dart';
 import 'package:qr_code_vision/entities/qr_location.dart';
-import 'package:qr_code_vision/locator/locator.dart';
+import 'package:qr_code_vision/locate/locate.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';

@@ -1,3 +1,4 @@
+/// The description of a QR code version
 class Version {
   final int? infoBits;
   final int versionNumber;
@@ -12,6 +13,7 @@ class Version {
   });
 }
 
+/// The error correction level of a QR code
 class ErrorCorrectionLevel {
   final int ecCodewordsPerBlock;
   final List<ErrorCorrectionBlock> ecBlocks;
@@ -22,6 +24,7 @@ class ErrorCorrectionLevel {
   });
 }
 
+/// An error correction block
 class ErrorCorrectionBlock {
   final int numBlocks;
   final int dataCodewordsPerBlock;
@@ -32,6 +35,7 @@ class ErrorCorrectionBlock {
   });
 }
 
+/// List of all the possible QR code versions
 const versions = [
   Version(
     versionNumber: 1,

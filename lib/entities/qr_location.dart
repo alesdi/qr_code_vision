@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:qr_code_vision/extractor/perspective.dart';
+import 'package:qr_code_vision/helpers/perspective_transform.dart';
 
 import 'position.dart';
 
@@ -36,6 +36,7 @@ class QrLocation extends Equatable {
     required this.dimension,
   });
 
+  /// Compute a
   PerspectiveTransform computePerspectiveTransform() {
     return PerspectiveTransform.fromQuadrilaterals(
       [

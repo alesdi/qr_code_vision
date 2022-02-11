@@ -1,3 +1,4 @@
+/// Shift-Jis Encoding table
 const shiftJisTable = {
   0x20: 0x0020,
   0x21: 0x0021,
