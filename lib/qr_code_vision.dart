@@ -4,16 +4,17 @@ import 'dart:typed_data';
 
 import 'package:qr_code_vision/binarizer/convert_to_binary.dart';
 import 'package:qr_code_vision/decoder/decode_data.dart';
-import 'package:qr_code_vision/decoder/decoder.dart';
 import 'package:qr_code_vision/entities/bit_matrix.dart';
 import 'package:qr_code_vision/entities/qr_location.dart';
 import 'package:qr_code_vision/locator/locator.dart';
 
+import 'decoder/decoder.dart';
 import 'extractor/extractor.dart';
 
 export 'entities/bit_matrix.dart' show BitMatrix;
 export 'entities/qr_location.dart' show QrLocation, QrDimension;
 
+/// A QR code captured from images, with its location and content.
 class QrCode {
   final int staleContentLimit;
   QrContent? _content;
@@ -21,11 +22,13 @@ class QrCode {
 
   int _staleCounter = 0;
 
+  /// Initializes a new QR code.
   QrCode({this.staleContentLimit = 10});
 
   QrContent? get content => _content;
   QrLocation? get location => _location;
 
+  /// Scan a BitMatrix to update QR code content and location.
   scanBitMatrix(BitMatrix matrix, {bool forceDecode = false}) {
     // Keep old content as default, unless stale or forceDecode is true
     QrContent? newContent;
@@ -50,7 +53,8 @@ class QrCode {
     _content = newContent;
   }
 
+  /// Scan an image encoded as a Uint8List of RGBA values to update QR code content and location.
   scanRgbaBytes(Uint8List bytes, int width, int height) {
-    return convertToBinary(bytes, width, height);
+    scanBitMatrix(convertToBinary(bytes, width, height));
   }
 }

@@ -95,10 +95,19 @@ packages:
   dart_reed_solomon:
     dependency: transitive
     description:
-      name: dart_reed_solomon
+      path: "."
+      ref: HEAD
+      resolved-ref: c389b0d8c3112b6e667a781914c8bc2506a3f4b3
+      url: "https://github.com/alessandrodiano/reed_solomon.git"
+    source: git
+    version: "0.1.0+2"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.1.0+2"
+    version: "2.0.3"
   fake_async:
     dependency: transitive
     description:

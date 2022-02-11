@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -11,22 +10,29 @@ import 'package:qr_code_vision/qr_code_vision.dart';
 
 final cameras = <CameraDescription>[];
 late ui.Image overlayImage;
+late ui.Image demoImage;
+late Uint8List demoImageBytes;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   cameras.addAll(await availableCameras());
 
   overlayImage = await loadImage('assets/logo.png');
+  demoImage = await loadImage('assets/demo.jpg');
+  demoImageBytes =
+      (await demoImage.toByteData(format: ui.ImageByteFormat.rawRgba))!
+          .buffer
+          .asUint8List();
   runApp(const MyApp());
 }
 
 class PreviewFrame {
   final ui.Image image;
-  final QrLocation? qrLocation;
+  final QrCode? qrCode;
 
   PreviewFrame({
     required this.image,
-    this.qrLocation,
+    this.qrCode,
   });
 }
 
@@ -67,7 +73,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _showDebugOverlay = true;
   bool _showImageOverlay = false;
+  bool _useDemoImage = true;
   final qrCode = QrCode();
+
+  bool _processFrameReady = true;
 
   @override
   void initState() {
@@ -120,6 +129,15 @@ class _MyHomePageState extends State<MyHomePage> {
             },
             title: const Text("Show image overlay"),
           ),
+          SwitchListTile(
+            value: _useDemoImage,
+            onChanged: (value) {
+              setState(() {
+                _useDemoImage = value;
+              });
+            },
+            title: const Text("Use demo image"),
+          ),
         ],
       ),
     );
@@ -150,16 +168,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _processFrame(CameraImage image) async {
+    if (!_processFrameReady) {
+      return;
+    }
+    _processFrameReady = false;
     try {
-      final bytes = image.planes[0].bytes;
+      final width = _useDemoImage ? demoImage.width : image.width;
+      final height = _useDemoImage ? demoImage.height : image.height;
+      final bytes = _useDemoImage ? demoImageBytes : image.planes[0].bytes;
 
-      qrCode.scanRgbaBytes(bytes, image.width, image.height);
+      qrCode.scanRgbaBytes(bytes, width, height);
 
       final completer = Completer();
       ui.decodeImageFromPixels(
         bytes,
-        image.width,
-        image.height,
+        width,
+        height,
         ui.PixelFormat.bgra8888,
         completer.complete,
       );
@@ -167,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _frameStreamController.add(
         PreviewFrame(
           image: await completer.future,
-          qrLocation: qrCode.location,
+          qrCode: qrCode,
         ),
       );
     } catch (e) {
@@ -175,6 +199,7 @@ class _MyHomePageState extends State<MyHomePage> {
         print(e);
       }
     }
+    _processFrameReady = true;
   }
 }
 
@@ -199,21 +224,20 @@ class CameraViewPainter extends CustomPainter {
         size.width / frame.image.width, size.width / frame.image.width);
     canvas.drawImage(frame.image, Offset.zero, Paint());
 
-    if (frame.qrLocation != null) {
-      final topLeftOffset =
-          Offset(frame.qrLocation!.topLeft.x, frame.qrLocation!.topLeft.y);
-      final bottomLeftOffset = Offset(
-          frame.qrLocation!.bottomLeft.x, frame.qrLocation!.bottomLeft.y);
-      final topRightOffset =
-          Offset(frame.qrLocation!.topRight.x, frame.qrLocation!.topRight.y);
-      final alignmentPatternOffset = Offset(
-          frame.qrLocation!.alignmentPattern.x,
-          frame.qrLocation!.alignmentPattern.y);
+    if (frame.qrCode != null && frame.qrCode!.location != null) {
+      final location = frame.qrCode!.location!;
+
+      final topLeftOffset = Offset(location.topLeft.x, location.topLeft.y);
+      final bottomLeftOffset =
+          Offset(location.bottomLeft.x, location.bottomLeft.y);
+      final topRightOffset = Offset(location.topRight.x, location.topRight.y);
+      final alignmentPatternOffset =
+          Offset(location.alignmentPattern.x, location.alignmentPattern.y);
 
       if (showDebugOverlay) {
-        final finderPatternSize = frame.qrLocation!.dimension.module * 7 / 2;
+        final finderPatternSize = location.dimension.module * 7 / 2;
 
-        final alignmentPatternSize = frame.qrLocation!.dimension.module * 5 / 2;
+        final alignmentPatternSize = location.dimension.module * 5 / 2;
 
         canvas.drawCircle(topLeftOffset, finderPatternSize, finderPatternPaint);
 
@@ -227,13 +251,48 @@ class CameraViewPainter extends CustomPainter {
             alignmentPatternOffset, alignmentPatternSize, finderPatternPaint);
       }
 
+      canvas.transform(
+          location.computePerspectiveTransform().to3DPerspectiveMatrix());
+      final targetSize = location.dimension.size.toDouble();
+
       if (showImageOverlay) {
-        final overlaySize =
-            max(overlayImage.width, overlayImage.height).toDouble();
+        canvas.drawImageRect(
+            overlayImage,
+            Rect.fromLTWH(0, 0, overlayImage.width.toDouble(),
+                overlayImage.height.toDouble()),
+            Rect.fromLTWH(0, 0, targetSize, targetSize),
+            Paint());
+      }
 
-        canvas.transform(frame.qrLocation!.toTransformationMatrix(overlaySize));
+      if (showDebugOverlay) {
+        if (showDebugOverlay) {
+          final textStyle = TextStyle(
+            color: Colors.red,
+            fontSize: targetSize * 0.1,
+          );
+          final textSpan = TextSpan(
+            text: frame.qrCode!.content?.text,
+            style: textStyle,
+          );
+          final textPainter = TextPainter(
+            text: textSpan,
+            textDirection: TextDirection.ltr,
+          );
+          textPainter.layout(
+            minWidth: 0,
+            maxWidth: targetSize,
+          );
 
-        canvas.drawImage(overlayImage, Offset.zero, Paint());
+          canvas.drawRect(
+            Rect.fromLTWH(0, 0, targetSize, targetSize),
+            Paint()
+              ..style = ui.PaintingStyle.stroke
+              ..strokeWidth = 1.0
+              ..color = Colors.red,
+          );
+
+          textPainter.paint(canvas, Offset(0, targetSize * 1.1));
+        }
       }
     }
   }

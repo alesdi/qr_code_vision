@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
 import 'package:qr_code_vision/entities/position.dart';
@@ -97,17 +98,24 @@ class PerspectiveTransform {
   }
 
   Position<double> call(Position point) {
-    final matrix = _matrix.toList();
     final x = point.x.toDouble();
     final y = point.y.toDouble();
-    final denominator =
-        matrix[3 * 0 + 2] * x + matrix[3 * 1 + 2] * y + matrix[3 * 2 + 2];
+    final denominator = _matrix(1, 3) * x + _matrix(2, 3) * y + _matrix(3, 3);
     return Position<double>(
-      (matrix[3 * 0 + 0] * x + matrix[3 * 1 + 0] * y + matrix[3 * 2 + 0]) /
-          denominator,
-      (matrix[3 * 0 + 1] * x + matrix[3 * 1 + 1] * y + matrix[3 * 2 + 1]) /
-          denominator,
+      (_matrix(1, 1) * x + _matrix(2, 1) * y + _matrix(3, 1)) / denominator,
+      (_matrix(1, 2) * x + _matrix(2, 2) * y + _matrix(3, 2)) / denominator,
     );
+  }
+
+  /// Compute an equivalent 3D perspective matrix (4x4) that can be used to
+  /// transform a canvas.
+  Float64List to3DPerspectiveMatrix() {
+    return Float64List.fromList([
+      _matrix(1, 1), _matrix(1, 2), 0, _matrix(1, 3), //
+      _matrix(2, 1), _matrix(2, 2), 0, _matrix(2, 3), //
+      0, 0, 1, 1, //
+      _matrix(3, 1), _matrix(3, 2), 0, _matrix(3, 3), //
+    ]);
   }
 
   @override

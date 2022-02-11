@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:equatable/equatable.dart';
 import 'package:qr_code_vision/extractor/perspective.dart';
 
@@ -53,24 +51,6 @@ class QrLocation extends Equatable {
         bottomLeft,
       ],
     );
-  }
-
-  /// Extract a transformation matrix representing the QR code location
-  /// in the image, given the expected real size of the QR code.
-  Float64List toTransformationMatrix(final num size) {
-    final double a = (topRight.x - topLeft.x) / size;
-    final double b = (topRight.y - topLeft.y) / size;
-    final double c = (bottomLeft.x - topLeft.x) / size;
-    final double d = (bottomLeft.y - topLeft.y) / size;
-    final e = topLeft.x;
-    final f = topLeft.y;
-
-    return Float64List.fromList([
-      a, b, 0, 0, //
-      c, d, 0, 0, //
-      0, 0, 1, 0, //
-      e, f, 0, 1, //
-    ]);
   }
 
   @override
