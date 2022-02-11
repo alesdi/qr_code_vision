@@ -47,7 +47,7 @@ class QrCode {
     if (_location != null) {
       // Get new content
       final extractedQrCode = extract(matrix, _location!);
-      newContent = decode(extractedQrCode.matrix);
+      newContent = decode(extractedQrCode.matrix) ?? newContent;
     }
 
     _content = newContent;

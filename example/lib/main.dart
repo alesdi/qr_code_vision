@@ -18,7 +18,7 @@ void main() async {
   cameras.addAll(await availableCameras());
 
   overlayImage = await loadImage('assets/logo.png');
-  demoImage = await loadImage('assets/demo.jpg');
+  demoImage = await loadImage('assets/demo.png');
   demoImageBytes =
       (await demoImage.toByteData(format: ui.ImageByteFormat.rawRgba))!
           .buffer
@@ -73,7 +73,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _showDebugOverlay = true;
   bool _showImageOverlay = false;
-  bool _useDemoImage = true;
+  bool _useDemoImage = false;
   final qrCode = QrCode();
 
   bool _processFrameReady = true;
@@ -150,14 +150,8 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (context, snapshot) => snapshot.data != null
           ? LayoutBuilder(
               builder: (context, constraints) => ClipRect(
-                child: CustomPaint(
-                  painter: CameraViewPainter(
-                    frame: snapshot.data!,
-                    showDebugOverlay: _showDebugOverlay,
-                    showImageOverlay: _showImageOverlay,
-                  ),
-                  size: ui.Size(constraints.maxWidth, constraints.maxWidth),
-                ),
+                child: _buildFrame(
+                    snapshot.data!, constraints.maxWidth, constraints.maxWidth),
                 clipBehavior: Clip.hardEdge,
               ),
             )
@@ -165,6 +159,72 @@ class _MyHomePageState extends State<MyHomePage> {
               child: CircularProgressIndicator(),
             ),
     );
+  }
+
+  Widget _buildFrame(PreviewFrame frame, double width, double height) {
+    final scaleFactor = width / frame.image.width.toDouble();
+
+    return Stack(
+      alignment: Alignment.topLeft,
+      children: [
+        CustomPaint(
+          painter: CameraViewPainter(frame: frame),
+          size: ui.Size(width, height),
+        ),
+        (_showImageOverlay && frame.qrCode != null)
+            ? _buildImageOverlay(frame.qrCode!, scaleFactor)
+            : Container(),
+        (_showDebugOverlay && frame.qrCode != null)
+            ? CustomPaint(
+                painter: DebugOverlayPainter(frame: frame),
+                size: ui.Size(width, height),
+              )
+            : Container()
+      ],
+    );
+  }
+
+  Widget _buildImageOverlay(QrCode qrCode, double scaleFactor) {
+    final transformMatrix =
+        qrCode.location?.computePerspectiveTransform().to3DPerspectiveMatrix();
+
+    final scaledTransformationMatrix = transformMatrix != null
+        ? Matrix4.diagonal3Values(scaleFactor, scaleFactor, scaleFactor) *
+            Matrix4.fromFloat64List(transformMatrix)
+        : null;
+
+    final content = qrCode.content?.text;
+    final qrCodeSize = qrCode.location?.dimension.size.toDouble();
+
+    // Check if content is a url
+    final url = content != null ? Uri.tryParse(content) : null;
+
+    if (qrCodeSize != null && url != null) {
+      return Transform(
+        alignment: Alignment.topLeft,
+        transform: scaledTransformationMatrix,
+        child: Image.network(
+          url.toString(),
+          width: qrCodeSize,
+          height: qrCodeSize,
+          errorBuilder:
+              (BuildContext context, Object exception, StackTrace? stackTrace) {
+            return SizedBox(
+              height: qrCodeSize,
+              width: qrCodeSize,
+              child: Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: qrCodeSize * 0.5,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    } else {
+      return Container();
+    }
   }
 
   Future<void> _processFrame(CameraImage image) async {
@@ -204,15 +264,9 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class CameraViewPainter extends CustomPainter {
-  CameraViewPainter({
-    required this.frame,
-    required this.showDebugOverlay,
-    required this.showImageOverlay,
-  });
+  CameraViewPainter({required this.frame});
 
   final PreviewFrame frame;
-  final bool showDebugOverlay;
-  final bool showImageOverlay;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -223,6 +277,27 @@ class CameraViewPainter extends CustomPainter {
     canvas.scale(
         size.width / frame.image.width, size.width / frame.image.width);
     canvas.drawImage(frame.image, Offset.zero, Paint());
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
+class DebugOverlayPainter extends CustomPainter {
+  DebugOverlayPainter({required this.frame});
+
+  final PreviewFrame frame;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final finderPatternPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..color = Colors.red;
+    canvas.scale(
+        size.width / frame.image.width, size.width / frame.image.width);
 
     if (frame.qrCode != null && frame.qrCode!.location != null) {
       final location = frame.qrCode!.location!;
@@ -234,66 +309,49 @@ class CameraViewPainter extends CustomPainter {
       final alignmentPatternOffset =
           Offset(location.alignmentPattern.x, location.alignmentPattern.y);
 
-      if (showDebugOverlay) {
-        final finderPatternSize = location.dimension.module * 7 / 2;
+      final finderPatternSize = location.dimension.module * 7 / 2;
 
-        final alignmentPatternSize = location.dimension.module * 5 / 2;
+      final alignmentPatternSize = location.dimension.module * 5 / 2;
 
-        canvas.drawCircle(topLeftOffset, finderPatternSize, finderPatternPaint);
+      canvas.drawCircle(topLeftOffset, finderPatternSize, finderPatternPaint);
 
-        canvas.drawCircle(
-            bottomLeftOffset, finderPatternSize, finderPatternPaint);
+      canvas.drawCircle(
+          bottomLeftOffset, finderPatternSize, finderPatternPaint);
 
-        canvas.drawCircle(
-            topRightOffset, finderPatternSize, finderPatternPaint);
+      canvas.drawCircle(topRightOffset, finderPatternSize, finderPatternPaint);
 
-        canvas.drawCircle(
-            alignmentPatternOffset, alignmentPatternSize, finderPatternPaint);
-      }
+      canvas.drawCircle(
+          alignmentPatternOffset, alignmentPatternSize, finderPatternPaint);
 
       canvas.transform(
           location.computePerspectiveTransform().to3DPerspectiveMatrix());
       final targetSize = location.dimension.size.toDouble();
+      final textStyle = TextStyle(
+        color: Colors.red,
+        fontSize: targetSize * 0.1,
+      );
+      final textSpan = TextSpan(
+        text: frame.qrCode!.content?.text,
+        style: textStyle,
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout(
+        minWidth: 0,
+        maxWidth: targetSize,
+      );
 
-      if (showImageOverlay) {
-        canvas.drawImageRect(
-            overlayImage,
-            Rect.fromLTWH(0, 0, overlayImage.width.toDouble(),
-                overlayImage.height.toDouble()),
-            Rect.fromLTWH(0, 0, targetSize, targetSize),
-            Paint());
-      }
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, targetSize, targetSize),
+        Paint()
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..color = Colors.red,
+      );
 
-      if (showDebugOverlay) {
-        if (showDebugOverlay) {
-          final textStyle = TextStyle(
-            color: Colors.red,
-            fontSize: targetSize * 0.1,
-          );
-          final textSpan = TextSpan(
-            text: frame.qrCode!.content?.text,
-            style: textStyle,
-          );
-          final textPainter = TextPainter(
-            text: textSpan,
-            textDirection: TextDirection.ltr,
-          );
-          textPainter.layout(
-            minWidth: 0,
-            maxWidth: targetSize,
-          );
-
-          canvas.drawRect(
-            Rect.fromLTWH(0, 0, targetSize, targetSize),
-            Paint()
-              ..style = ui.PaintingStyle.stroke
-              ..strokeWidth = 1.0
-              ..color = Colors.red,
-          );
-
-          textPainter.paint(canvas, Offset(0, targetSize * 1.1));
-        }
-      }
+      textPainter.paint(canvas, Offset(0, targetSize * 1.1));
     }
   }
 
