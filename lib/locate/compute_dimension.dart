@@ -2,19 +2,19 @@
 import 'package:qr_code_vision/entities/position.dart';
 import 'package:qr_code_vision/entities/qr_location.dart';
 
-import '../entities/bit_matrix.dart';
+import '../helpers/bit_matrix.dart';
 import 'count_black_white_run.dart';
 
-QrDimension? computeQrDimension({
-  required final Position topLeft,
-  required final Position topRight,
-  required final Position bottomLeft,
+/// Computes the size of finder patterns along multiple directions
+/// vertical and horizontal directions, assuming that each finder pattern
+/// can be recognized in any direction as a sequence of 5 alternating black and
+/// white modules.
+QrDimension? computeDimension({
+  required final Position<double> topLeft,
+  required final Position<double> topRight,
+  required final Position<double> bottomLeft,
   required final BitMatrix matrix,
 }) {
-  // Compute the size of finder patterns along multiple directions
-  // vertical and horizontal directions, assuming that each finder pattern
-  // can be recognized in any direction as a sequence of 5 alternating black and
-  // white modules.
   final topLeftVertical = countBlackWhiteRun(
     origin: topLeft,
     end: bottomLeft,

@@ -1,12 +1,13 @@
+/// This example illustrates how to build a simple AR Flutter app that uses the
+/// qr_code_vision Dart package to locate and decode a QR code and, if it
+/// contains the URL to an image, display it right on top of the code, with
+/// accurate perspective and dimensions.
 import 'dart:async';
-import 'dart:math';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:qr_code_vision/qr_code_vision.dart';
 
 final cameras = <CameraDescription>[];
@@ -16,26 +17,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   cameras.addAll(await availableCameras());
 
-  overlayImage = await loadImage('assets/logo.png');
   runApp(const MyApp());
-}
-
-class PreviewFrame {
-  final ui.Image image;
-  final QrLocation? qrLocation;
-
-  PreviewFrame({
-    required this.image,
-    this.qrLocation,
-  });
-}
-
-Future<ui.Image> loadImage(final String assetPath) async {
-  final data = await rootBundle.load(assetPath);
-  final list = Uint8List.view(data.buffer);
-  final completer = Completer<ui.Image>();
-  ui.decodeImageFromList(list, completer.complete);
-  return completer.future;
 }
 
 class MyApp extends StatelessWidget {
@@ -63,15 +45,19 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late CameraController _cameraController;
 
-  final _frameStreamController = StreamController<PreviewFrame>();
-  final locator = QrLocator();
+  final _scannedFrameStreamController = StreamController<_ScannedFrame>();
 
   bool _showDebugOverlay = true;
   bool _showImageOverlay = false;
+  bool _processFrameReady = true;
+
+  // The scanned QR code
+  final _qrCode = QrCode();
 
   @override
   void initState() {
     super.initState();
+    // Initialize camera stream and listen to captured frames
     _cameraController = CameraController(cameras[0], ResolutionPreset.medium);
 
     _cameraController.initialize().then((_) {
@@ -81,13 +67,6 @@ class _MyHomePageState extends State<MyHomePage> {
       _cameraController.startImageStream(_processFrame);
       setState(() {});
     });
-  }
-
-  @override
-  void dispose() {
-    _cameraController.dispose();
-    _frameStreamController.close();
-    super.dispose();
   }
 
   @override
@@ -102,6 +81,10 @@ class _MyHomePageState extends State<MyHomePage> {
       body: ListView(
         children: [
           _buildPreview(),
+          const ListTile(
+            title:
+                Text("Point your camera at a QR code containing an image URL."),
+          ),
           SwitchListTile(
             value: _showDebugOverlay,
             onChanged: (value) {
@@ -126,20 +109,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildPreview() {
-    return StreamBuilder<PreviewFrame>(
-      stream: _frameStreamController.stream,
+    return StreamBuilder<_ScannedFrame>(
+      stream: _scannedFrameStreamController.stream,
       initialData: null,
       builder: (context, snapshot) => snapshot.data != null
           ? LayoutBuilder(
               builder: (context, constraints) => ClipRect(
-                child: CustomPaint(
-                  painter: CameraViewPainter(
-                    frame: snapshot.data!,
-                    showDebugOverlay: _showDebugOverlay,
-                    showImageOverlay: _showImageOverlay,
-                  ),
-                  size: ui.Size(constraints.maxWidth, constraints.maxWidth),
-                ),
+                child: _buildFrame(
+                    snapshot.data!, constraints.maxWidth, constraints.maxWidth),
                 clipBehavior: Clip.hardEdge,
               ),
             )
@@ -149,25 +126,107 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _processFrame(CameraImage image) async {
-    try {
-      final bytes = image.planes[0].bytes;
-      final qrLocation =
-          locator.locate(convertToBinary(bytes, image.width, image.height));
+  Widget _buildFrame(_ScannedFrame frame, double width, double height) {
+    final scaleFactor = width / frame.image.width.toDouble();
 
+    return Stack(
+      alignment: Alignment.topLeft,
+      children: [
+        CustomPaint(
+          painter: _CameraViewPainter(frame: frame),
+          size: ui.Size(width, height),
+        ),
+        (_showImageOverlay && frame.qrCode != null)
+            ? _buildImageOverlay(frame.qrCode!, scaleFactor)
+            : Container(),
+        (_showDebugOverlay && frame.qrCode != null)
+            ? CustomPaint(
+                painter: _DebugOverlayPainter(frame: frame),
+                size: ui.Size(width, height),
+              )
+            : Container()
+      ],
+    );
+  }
+
+  Widget _buildImageOverlay(QrCode qrCode, double scaleFactor) {
+    final transformMatrix =
+        qrCode.location?.computePerspectiveTransform().to3DPerspectiveMatrix();
+
+    final scaledTransformationMatrix = transformMatrix != null
+        ? Matrix4.diagonal3Values(scaleFactor, scaleFactor, scaleFactor) *
+            Matrix4.fromFloat64List(transformMatrix)
+        : null;
+
+    final content = qrCode.content?.text;
+    final qrCodeSize = qrCode.location?.dimension.size.toDouble();
+
+    // Check if content is a url
+    final url = content != null ? Uri.tryParse(content) : null;
+
+    if (qrCodeSize != null && url != null) {
+      return Transform(
+        alignment: Alignment.topLeft,
+        transform: scaledTransformationMatrix,
+        child: Image.network(
+          url.toString(),
+          width: qrCodeSize,
+          height: qrCodeSize,
+          errorBuilder:
+              (BuildContext context, Object exception, StackTrace? stackTrace) {
+            return SizedBox(
+              height: qrCodeSize,
+              width: qrCodeSize,
+              child: Center(
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: qrCodeSize * 0.5,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    } else {
+      return Container();
+    }
+  }
+
+  /// Process a captured frame and scan it for QR codes
+  Future<void> _processFrame(CameraImage cameraFrame) async {
+    // Skip this frame if another frame is already being processed
+    // (otherwise simultaneous processes could accumulate, leading to memory
+    // leaks and crashes)
+    if (!_processFrameReady) {
+      return;
+    }
+    _processFrameReady = false;
+
+    try {
+      final width = cameraFrame.width;
+      final height = cameraFrame.height;
+      final bytes = cameraFrame.planes[0].bytes;
+
+      // Extract and decode the raw image data
       final completer = Completer();
       ui.decodeImageFromPixels(
         bytes,
-        image.width,
-        image.height,
+        width,
+        height,
         ui.PixelFormat.bgra8888,
         completer.complete,
       );
 
-      _frameStreamController.add(
-        PreviewFrame(
-          image: await completer.future,
-          qrLocation: qrLocation,
+      final image = await completer.future;
+
+      // Update the QR code by scanning the image content
+      _qrCode.scanRgbaBytes(bytes, width, height);
+
+      // Publish an update for the UI
+      _scannedFrameStreamController.add(
+        _ScannedFrame(
+          image: image,
+          qrCode: _qrCode,
         ),
       );
     } catch (e) {
@@ -175,19 +234,35 @@ class _MyHomePageState extends State<MyHomePage> {
         print(e);
       }
     }
+
+    // Raise the flag to allow another frame to be processed
+    _processFrameReady = true;
+  }
+
+  @override
+  void dispose() {
+    _cameraController.dispose();
+    _scannedFrameStreamController.close();
+    super.dispose();
   }
 }
 
-class CameraViewPainter extends CustomPainter {
-  CameraViewPainter({
-    required this.frame,
-    required this.showDebugOverlay,
-    required this.showImageOverlay,
-  });
+/// A frame scanned for QR codes
+class _ScannedFrame {
+  final ui.Image image;
+  final QrCode? qrCode;
 
-  final PreviewFrame frame;
-  final bool showDebugOverlay;
-  final bool showImageOverlay;
+  _ScannedFrame({
+    required this.image,
+    this.qrCode,
+  });
+}
+
+/// A custom painter to show the camera frames
+class _CameraViewPainter extends CustomPainter {
+  _CameraViewPainter({required this.frame});
+
+  final _ScannedFrame frame;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -198,43 +273,83 @@ class CameraViewPainter extends CustomPainter {
     canvas.scale(
         size.width / frame.image.width, size.width / frame.image.width);
     canvas.drawImage(frame.image, Offset.zero, Paint());
+  }
 
-    if (frame.qrLocation != null) {
-      final topLeftOffset =
-          Offset(frame.qrLocation!.topLeft.x, frame.qrLocation!.topLeft.y);
-      final bottomLeftOffset = Offset(
-          frame.qrLocation!.bottomLeft.x, frame.qrLocation!.bottomLeft.y);
-      final topRightOffset =
-          Offset(frame.qrLocation!.topRight.x, frame.qrLocation!.topRight.y);
-      final alignmentPatternOffset = Offset(
-          frame.qrLocation!.alignmentPattern.x,
-          frame.qrLocation!.alignmentPattern.y);
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
+  }
+}
 
-      if (showDebugOverlay) {
-        final finderPatternSize = frame.qrLocation!.dimension.module * 7 / 2;
+/// A custom painter to show the debug overlays (such as finder patterns)
+/// over the camera image
+class _DebugOverlayPainter extends CustomPainter {
+  _DebugOverlayPainter({required this.frame});
 
-        final alignmentPatternSize = frame.qrLocation!.dimension.module * 5 / 2;
+  final _ScannedFrame frame;
 
-        canvas.drawCircle(topLeftOffset, finderPatternSize, finderPatternPaint);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final finderPatternPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..color = Colors.red;
+    canvas.scale(
+        size.width / frame.image.width, size.width / frame.image.width);
 
-        canvas.drawCircle(
-            bottomLeftOffset, finderPatternSize, finderPatternPaint);
+    if (frame.qrCode != null && frame.qrCode!.location != null) {
+      final location = frame.qrCode!.location!;
 
-        canvas.drawCircle(
-            topRightOffset, finderPatternSize, finderPatternPaint);
+      final topLeftOffset = Offset(location.topLeft.x, location.topLeft.y);
+      final bottomLeftOffset =
+          Offset(location.bottomLeft.x, location.bottomLeft.y);
+      final topRightOffset = Offset(location.topRight.x, location.topRight.y);
+      final alignmentPatternOffset =
+          Offset(location.alignmentPattern.x, location.alignmentPattern.y);
 
-        canvas.drawCircle(
-            alignmentPatternOffset, alignmentPatternSize, finderPatternPaint);
-      }
+      final finderPatternSize = location.dimension.module * 7 / 2;
 
-      if (showImageOverlay) {
-        final overlaySize =
-            max(overlayImage.width, overlayImage.height).toDouble();
+      final alignmentPatternSize = location.dimension.module * 5 / 2;
 
-        canvas.transform(frame.qrLocation!.toTransformationMatrix(overlaySize));
+      canvas.drawCircle(topLeftOffset, finderPatternSize, finderPatternPaint);
 
-        canvas.drawImage(overlayImage, Offset.zero, Paint());
-      }
+      canvas.drawCircle(
+          bottomLeftOffset, finderPatternSize, finderPatternPaint);
+
+      canvas.drawCircle(topRightOffset, finderPatternSize, finderPatternPaint);
+
+      canvas.drawCircle(
+          alignmentPatternOffset, alignmentPatternSize, finderPatternPaint);
+
+      canvas.transform(
+          location.computePerspectiveTransform().to3DPerspectiveMatrix());
+      final targetSize = location.dimension.size.toDouble();
+      final textStyle = TextStyle(
+        color: Colors.red,
+        fontSize: targetSize * 0.1,
+      );
+      final textSpan = TextSpan(
+        text: frame.qrCode!.content?.text,
+        style: textStyle,
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout(
+        minWidth: 0,
+        maxWidth: targetSize,
+      );
+
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, targetSize, targetSize),
+        Paint()
+          ..style = ui.PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..color = Colors.red,
+      );
+
+      textPainter.paint(canvas, Offset(0, targetSize * 1.1));
     }
   }
 

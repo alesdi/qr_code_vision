@@ -1,21 +1,16 @@
 name: qr_code_vision
 description: A pure Dart package for QR detection, decoding and tracking.
-version: 0.0.1
+version: 0.1.0
 homepage: https://github.com/alessandrodiano/qr_code_vision
 
 environment:
   sdk: ">=2.15.0 <3.0.0"
-  flutter: ">=1.17.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
   image: ^3.1.0
-  js: ^0.6.3
+  collection: ^1.15.0
+  dart_reed_solomon_nullsafety: ^0.2.0
+  equatable: ^2.0.3
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^1.0.0
-
-flutter:
+  test: ^1.20.1

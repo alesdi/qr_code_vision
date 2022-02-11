@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
-class BitMatrix {
+import 'package:equatable/equatable.dart';
+
+class BitMatrix extends Equatable {
   final int width;
   final int height;
   final Uint8ClampedList _data;
 
-  static createEmpty(int width, int height) {
+  static BitMatrix createEmpty(int width, int height) {
     return BitMatrix(Uint8ClampedList(width * height), width);
   }
 
@@ -29,4 +31,7 @@ class BitMatrix {
       }
     }
   }
+
+  @override
+  List<Object?> get props => [_data, width, height];
 }

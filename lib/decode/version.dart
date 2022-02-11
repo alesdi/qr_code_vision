@@ -1,8 +1,9 @@
+/// The description of a QR code version
 class Version {
   final int? infoBits;
   final int versionNumber;
-  final Iterable<int> alignmentPatternCenters;
-  final Iterable<ErrorCorrectionLevel> errorCorrectionLevels;
+  final List<int> alignmentPatternCenters;
+  final List<ErrorCorrectionLevel> errorCorrectionLevels;
 
   const Version({
     this.infoBits,
@@ -12,9 +13,10 @@ class Version {
   });
 }
 
+/// The error correction level of a QR code
 class ErrorCorrectionLevel {
   final int ecCodewordsPerBlock;
-  final Iterable<ErrorCorrectionBlock> ecBlocks;
+  final List<ErrorCorrectionBlock> ecBlocks;
 
   const ErrorCorrectionLevel({
     required this.ecCodewordsPerBlock,
@@ -22,6 +24,7 @@ class ErrorCorrectionLevel {
   });
 }
 
+/// An error correction block
 class ErrorCorrectionBlock {
   final int numBlocks;
   final int dataCodewordsPerBlock;
@@ -32,6 +35,7 @@ class ErrorCorrectionBlock {
   });
 }
 
+/// List of all the possible QR code versions
 const versions = [
   Version(
     versionNumber: 1,
