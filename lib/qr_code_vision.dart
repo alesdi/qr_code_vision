@@ -2,6 +2,8 @@ library flutter_qr_tracker;
 
 import 'dart:typed_data';
 
+import 'package:image/image.dart';
+
 import 'decode/decode.dart';
 import 'decode/decode_data.dart';
 import 'entities/position.dart';
@@ -86,6 +88,16 @@ class QrCode {
     bool ignoreIfUnreadable = false,
   }) {
     scanBitMatrix(convertToBinary(bytes, width, height));
+  }
+
+  /// Scan an encoded image in any format supported by the dart image library
+  /// to update QR code and location
+  scanImageBytes(Uint8List bytes) {
+    var image = decodeImage(bytes);
+    if (image == null) {
+      return;
+    }
+    scanBitMatrix(convertImageToBinary(image));
   }
 
   /// Extract the raw content of the QR code from an image BitMatrix, given

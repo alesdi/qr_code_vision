@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:image/image.dart';
+
 import 'bit_matrix.dart';
 
 const REGION_SIZE = 8;
@@ -22,14 +24,48 @@ BitMatrix convertToBinary(
   final greyScalePixels = _GrayScaleMatrix(width, height);
   for (int x = 0; x < width; x++) {
     for (int y = 0; y < height; y++) {
-      final r = data[((y * width + x) * 4) + 0];
-      final g = data[((y * width + x) * 4) + 1];
-      final b = data[((y * width + x) * 4) + 2];
-      greyScalePixels.set(x, y, (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt());
+      final pixelIndex = (y * width + x) * 4;
+      final r = data[pixelIndex + 0];
+      final g = data[pixelIndex + 1];
+      final b = data[pixelIndex + 2];
+      final a = data[pixelIndex + 3];
+
+      greyScalePixels.set(x, y, _calculateGrayscaleLuminance(r, g, b, a));
     }
   }
-  final horizontalRegionCount = (width / REGION_SIZE).floor();
-  final verticalRegionCount = (height / REGION_SIZE).floor();
+  return _convertGrayScaleToBinary(greyScalePixels, returnInverted);
+}
+
+BitMatrix convertImageToBinary(
+  Image image, {
+  bool returnInverted = false,
+}) {
+  // Convert image to grey scale
+  final greyScalePixels = _GrayScaleMatrix(image.width, image.height);
+  for (Pixel pixel in image) {
+    greyScalePixels.set(pixel.x, pixel.y,
+        _calculateGrayscaleLuminance(pixel.r, pixel.g, pixel.b, pixel.a));
+  }
+  return _convertGrayScaleToBinary(greyScalePixels, returnInverted);
+}
+
+/// Convert RGB into perceptual luminance-preserving grayscale
+int _calculateGrayscaleLuminance(num r, num g, num b, num a) {
+  // Remove alpha channel by blending the image on a white background
+  final normalizedAlpha = a / 255.0;
+  final backgroundFraction = 255.0 * (1 - normalizedAlpha);
+  final blendedR = r * normalizedAlpha + backgroundFraction;
+  final blendedG = g * normalizedAlpha + backgroundFraction;
+  final blendedB = b * normalizedAlpha + backgroundFraction;
+
+  // Calculate luminance (https://en.wikipedia.org/wiki/Grayscale)
+  return (0.2126 * blendedR + 0.7152 * blendedG + 0.0722 * blendedB).toInt();
+}
+
+BitMatrix _convertGrayScaleToBinary(
+    _GrayScaleMatrix greyScalePixels, bool returnInverted) {
+  final horizontalRegionCount = (greyScalePixels.width / REGION_SIZE).floor();
+  final verticalRegionCount = (greyScalePixels.height / REGION_SIZE).floor();
 
   final blackPoints =
       _GrayScaleMatrix(horizontalRegionCount, verticalRegionCount);
@@ -85,7 +121,8 @@ BitMatrix convertToBinary(
     }
   }
 
-  final binarized = BitMatrix.createEmpty(width, height);
+  final binarized =
+      BitMatrix.createEmpty(greyScalePixels.width, greyScalePixels.height);
 
   for (int verticalRegion = 0;
       verticalRegion < verticalRegionCount;
@@ -130,7 +167,9 @@ int _isBetween(int value, int min, int max) {
 class _GrayScaleMatrix {
   final Uint8ClampedList data;
   final int width;
-  _GrayScaleMatrix(this.width, int height)
+  final int height;
+
+  _GrayScaleMatrix(this.width, this.height)
       : data = Uint8ClampedList(width * height);
 
   int get(int x, int y) {

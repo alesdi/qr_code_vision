@@ -18,7 +18,7 @@ Image bitMatrixToImage(BitMatrix matrix) {
     }
   }
   return Image.fromBytes(
-      matrix.width, matrix.height, output.buffer.asUint8List());
+      width: matrix.width, height: matrix.height, bytes: output.buffer);
 }
 
 BitMatrix loadMatrix(String path) {
@@ -26,13 +26,17 @@ BitMatrix loadMatrix(String path) {
   return convertToBinary(image.getBytes(), image.width, image.height);
 }
 
+/// Load image file from the given path and convert it into a bit matrix with
+/// one bit per pixel. A bit is set (1) when the corresponding pixel in the
+/// image is black. A pixel is considered black if its red, green and blue
+/// channel are zero.
 BitMatrix loadBinarized(String path) {
   final image = decodeImage(File(path).readAsBytesSync())!;
-  final data = image.getBytes();
   final out = BitMatrix.createEmpty(image.width, image.height);
   for (var x = 0; x < image.width; x++) {
     for (var y = 0; y < image.height; y++) {
-      out.set(x, y, data[(y * image.width + x) * 4] == 0x00);
+      var pixel = image.getPixel(x, y);
+      out.set(x, y, pixel.r == 0 && pixel.g == 0 && pixel.b == 0);
     }
   }
   return out;
