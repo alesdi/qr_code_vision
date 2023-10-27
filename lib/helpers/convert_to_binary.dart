@@ -40,13 +40,24 @@ BitMatrix convertImageToBinary(
   Image image, {
   bool returnInverted = false,
 }) {
-  // Convert image to grey scale
-  final greyScalePixels = _GrayScaleMatrix(image.width, image.height);
+  // Convert image to gray scale, but add a white margin with 12px on each side.
+  // Without the margin, the gray scale to bitmap conversion will misclassify
+  // some black pixels in a perfect QR code as 0-bit's.
+  // A perfect QR code has only black (#000000) or white (#FFFFFF) pixels and
+  // no white margin.
+  // I'm not sure why exactly that happens but probably it's caused by the averaging
+  // when applied to regions that are mostly black like,
+  // the position-pattern-squares in the corners of the QR code.
+  final grayScalePixels = _GrayScaleMatrix(image.width + 24, image.height + 24);
+  grayScalePixels.setAll(255);
   for (Pixel pixel in image) {
-    greyScalePixels.set(pixel.x, pixel.y,
-        _calculateGrayscaleLuminance(pixel.r, pixel.g, pixel.b, pixel.a));
+    grayScalePixels.set(
+        pixel.x,
+        pixel.y,
+        _calculateGrayscaleLuminance(
+            pixel.r, pixel.g, pixel.b, image.hasAlpha ? pixel.a : 255));
   }
-  return _convertGrayScaleToBinary(greyScalePixels, returnInverted);
+  return _convertGrayScaleToBinary(grayScalePixels, returnInverted);
 }
 
 /// Convert RGB into perceptual luminance-preserving grayscale
@@ -178,5 +189,9 @@ class _GrayScaleMatrix {
 
   void set(int x, int y, int value) {
     data[y * width + x] = value;
+  }
+
+  void setAll(int value) {
+    data.fillRange(0, data.length - 1, value);
   }
 }
