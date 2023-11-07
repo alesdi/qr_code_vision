@@ -195,3 +195,26 @@ class _GrayScaleMatrix {
     data.fillRange(0, data.length - 1, value);
   }
 }
+
+/// Converts the image into a bit matrix with one bit per pixel.
+/// A bit is set (1) when the corresponding pixel in the image is black.
+/// Otherwise the pixel is unset (0).
+/// A pixel is considered black if its red, green and blue channel are zero
+/// and it's alpha channel, if present, is 255.
+BitMatrix convertBlackWhiteImageToBinary(Image image) {
+  final out = BitMatrix.createEmpty(image.width, image.height);
+  for (var x = 0; x < image.width; x++) {
+    for (var y = 0; y < image.height; y++) {
+      out.set(x, y, _isBlackPixel(image, x, y));
+    }
+  }
+  return out;
+}
+
+bool _isBlackPixel(Image image, int x, int y) {
+  final pixel = image.getPixel(x, y);
+  if (image.hasAlpha && pixel.a != 255) {
+    return false;
+  }
+  return pixel.a == 255 && pixel.r == 0 && pixel.g == 0 && pixel.b == 0;
+}

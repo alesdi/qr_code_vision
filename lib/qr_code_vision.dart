@@ -97,6 +97,20 @@ class QrCode {
     if (image == null) {
       return;
     }
+    scanImage(image);
+  }
+
+  scanImage(Image image) {
+    // First pass: Simple black/white conversion. Only works with "perfect" QR codes.
+    // E.g. if it's the original QR code image file or the QR code is captured as a screenshot.
+    scanBitMatrix(convertBlackWhiteImageToBinary(image));
+    if (location != null && content != null) {
+      return;
+    }
+    // Second pass: Convert the image to gray scale and then to a bit matrix
+    // while considering regional luminance. Works better for QR codes
+    // that are captured with a physical camera but sometimes fails
+    // for "perfect" QR codes.
     scanBitMatrix(convertImageToBinary(image));
   }
 
