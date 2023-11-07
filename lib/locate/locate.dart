@@ -258,7 +258,7 @@ QrLocation? locate(
         [1, 1, 1],
         matrix);
     final score =
-        sizeScore + Position<double>(x, y).distanceTo(expectedAlignmentPattern);
+        /*sizeScore +*/ Position<double>(x, y).distanceTo(expectedAlignmentPattern);
 
     if (score < bestPatternScore) {
       bestPatternScore = score;
