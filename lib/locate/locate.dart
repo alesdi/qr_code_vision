@@ -37,22 +37,7 @@ QrLocation? locate(
         length = 1;
         lastBit = v;
 
-        // Do the last 5 color changes ~ match the expected ratio for a finder pattern? 1:1:3:1:1 of b:w:b:w:b
-        final averageFinderPatternBlockSize = scans.reduce((a, b) => a + b) / 7;
-        final validFinderPattern = (scans[
-                            0] -
-                        averageFinderPatternBlockSize)
-                    .abs() <
-                averageFinderPatternBlockSize &&
-            (scans[1] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            (scans[2] - 3 * averageFinderPatternBlockSize).abs() <
-                3 * averageFinderPatternBlockSize &&
-            (scans[3] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            (scans[4] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            !v; // And make sure the current pixel is white since finder patterns are bordered in white
+        final validFinderPattern = _isFinderPattern(scans, v);
 
         // Do the last 3 color changes ~ match the expected ratio for an alignment pattern? 1:1:1 of w:b:w
         final averageAlignmentPatternBlockSize =
@@ -257,8 +242,8 @@ QrLocation? locate(
         Position<double>(x.floorToDouble(), y.floorToDouble()),
         [1, 1, 1],
         matrix);
-    final score =
-        /*sizeScore +*/ Position<double>(x, y).distanceTo(expectedAlignmentPattern);
+    final score = /*sizeScore +*/
+        Position<double>(x, y).distanceTo(expectedAlignmentPattern);
 
     if (score < bestPatternScore) {
       bestPatternScore = score;
@@ -292,6 +277,61 @@ QrLocation? locate(
       dimension: dimension,
     );
   }
+}
+
+/// Whether the last 5 color changes match the expected ratio for a finder pattern in the QR code.
+///
+/// The parameter [scans] must be a window of length 5 of a run-length-encoded row in the bit matrix
+/// of the QR code, where [currentBit] is the first bit after that window.
+/// A QR Code finder/position pattern has a black/white ratio of 1:1:3:1:1.
+/// A row through the middle of a finder/position pattern where each block has size 1 looks like this:
+/// ```
+/// b = black
+/// w = white
+/// Row: bwbbbwb -> 1b 1w 3b 1w 1b -> 1:1:3:1:1
+/// ```
+/// Consider a perfect QR code image where each block is exactly 1 pixel:
+/// If [currentBit] is 0/false (white) and scans is `[1,1,3,1,1]` then we have found
+/// a row through a finder pattern. Since [currentBit] is 0 (white) the last value
+/// in [scans] encodes a single black pixel, the second last value a single white
+/// pixel and so on: `scans: [1b,1w,3b,1w,1b] current: 1w`
+bool _isFinderPattern(List<double> scans, bool currentBit) {
+  assert(scans.length == 5);
+
+  // make sure the current pixel is white
+  if (currentBit) {
+    return false;
+  }
+
+  // Use the average block size to detect the finder pattern in non-perfect QR code images
+  final avgBlockSize = scans.reduce((a, b) => a + b) / 7;
+
+  // That's a more efficient way to compute: ceil(scans[0] / avgBlockSize) != 1
+  if ((scans[0] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[1] / avgBlockSize) != 1
+  if ((scans[1] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[2] / avgBlockSize) != 3
+  if ((scans[2] - 3 * avgBlockSize).abs() >= 3 * avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[3] / avgBlockSize) != 1
+  if ((scans[3] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[4] / avgBlockSize) != 1
+  if ((scans[4] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  return true;
 }
 
 // Data classes
