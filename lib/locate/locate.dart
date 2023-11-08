@@ -38,19 +38,7 @@ QrLocation? locate(
         lastBit = v;
 
         final validFinderPattern = _isFinderPattern(scans, v);
-
-        // Do the last 3 color changes ~ match the expected ratio for an alignment pattern? 1:1:1 of w:b:w
-        final averageAlignmentPatternBlockSize =
-            scans.sublist(scans.length - 3).reduce((a, b) => a + b) / 3;
-        final validAlignmentPattern = (scans[2] -
-                        averageAlignmentPatternBlockSize)
-                    .abs() <
-                averageAlignmentPatternBlockSize &&
-            (scans[3] - averageAlignmentPatternBlockSize).abs() <
-                averageAlignmentPatternBlockSize &&
-            (scans[4] - averageAlignmentPatternBlockSize).abs() <
-                averageAlignmentPatternBlockSize &&
-            v; // Is the current pixel black since alignment patterns are bordered in black
+        final validAlignmentPattern = _isAlignmentPattern(scans, v);
 
         if (validFinderPattern) {
           // Compute the start and end x values of the large center black square
@@ -304,7 +292,7 @@ bool _isFinderPattern(List<double> scans, bool currentBit) {
   }
 
   // Use the average block size to detect the finder pattern in non-perfect QR code images
-  final avgBlockSize = scans.reduce((a, b) => a + b) / 7;
+  final avgBlockSize = scans.sum / 7;
 
   // That's a more efficient way to compute: ceil(scans[0] / avgBlockSize) != 1
   if ((scans[0] - avgBlockSize).abs() >= avgBlockSize) {
@@ -318,6 +306,39 @@ bool _isFinderPattern(List<double> scans, bool currentBit) {
 
   // ceil(scans[2] / avgBlockSize) != 3
   if ((scans[2] - 3 * avgBlockSize).abs() >= 3 * avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[3] / avgBlockSize) != 1
+  if ((scans[3] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // ceil(scans[4] / avgBlockSize) != 1
+  if ((scans[4] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  return true;
+}
+
+/// Whether the last 5 color changes match the expected ratio for an alignment pattern in the QR code.
+///
+/// Similar to [_isFinderPattern()] but matches the alignment pattern which
+/// has a ratio of 1w 1b 1w -> 1:1:1.
+bool _isAlignmentPattern(List<double> scans, bool currentBit) {
+  assert(scans.length == 5);
+
+  // make sure the current pixel is black
+  if (!currentBit) {
+    return false;
+  }
+
+  final avgBlockSize =
+      scans.sublist(scans.length - 3).sum / 3;
+
+  // ceil(scans[2] / avgBlockSize) != 1
+  if ((scans[2] - avgBlockSize).abs() >= avgBlockSize) {
     return false;
   }
 
