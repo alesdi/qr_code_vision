@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
@@ -40,4 +41,19 @@ BitMatrix loadBinarized(String path) {
     }
   }
   return out;
+}
+
+const _rndCharSet =
+    'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890:/#%';
+
+String generateRandomString(int length, Random rnd) {
+  return String.fromCharCodes(Iterable.generate(
+      length, (_) => _rndCharSet.codeUnitAt(rnd.nextInt(_rndCharSet.length))));
+}
+
+File dumpImageToFile(Image image, String name) {
+  final dir = Directory.systemTemp.createTempSync();
+  final file = File("${dir.path}/$name.png");
+  file.writeAsBytesSync(encodePng(image));
+  return file;
 }
