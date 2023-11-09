@@ -5,8 +5,8 @@ import 'package:equatable/equatable.dart';
 /// A generic position in a two-dimensional space, expressed as a pair of
 /// coordinates (that can be either integer or double).
 class Position<T extends num> extends Equatable {
-  T x;
-  T y;
+  final T x;
+  final T y;
   Position(this.x, this.y);
 
   /// Returns a copy of this position

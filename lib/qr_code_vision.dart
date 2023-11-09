@@ -1,5 +1,6 @@
 library flutter_qr_tracker;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
@@ -41,6 +42,7 @@ class QrCode {
     BitMatrix matrix, {
     bool invalidateContent = false,
     bool ignoreIfUnreadable = false,
+    bool perfectQrCode = false,
   }) {
     // Keep old content as default, unless stale or forceDecode is true
     QrContent? newContent;
@@ -48,9 +50,8 @@ class QrCode {
     // Get new location
     // TODO: Evaluate whether the new location is realistic
     // Consider using the old location instead or interpolating
-    final newLocation = locate(matrix);
+    final newLocation = locate(matrix, perfectQrCode: perfectQrCode);
     if (newLocation != null) {
-      // Get new content
       newContent = decode(_extract(matrix, newLocation));
     }
 
@@ -103,7 +104,7 @@ class QrCode {
   scanImage(Image image) {
     // First pass: Simple black/white conversion. Only works with "perfect" QR codes.
     // E.g. if it's the original QR code image file or the QR code is captured as a screenshot.
-    scanBitMatrix(convertBlackWhiteImageToBinary(image));
+    scanBitMatrix(convertBlackWhiteImageToBinary(image), perfectQrCode: true);
     if (location != null && content != null) {
       return;
     }
