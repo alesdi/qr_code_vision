@@ -1,8 +1,10 @@
 library flutter_qr_tracker;
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
+import 'package:qr_code_vision/helpers/image_format_repair.dart';
 
 import 'decode/decode.dart';
 import 'decode/decode_data.dart';
@@ -41,6 +43,7 @@ class QrCode {
     BitMatrix matrix, {
     bool invalidateContent = false,
     bool ignoreIfUnreadable = false,
+    bool perfectQrCode = false,
   }) {
     // Keep old content as default, unless stale or forceDecode is true
     QrContent? newContent;
@@ -48,9 +51,8 @@ class QrCode {
     // Get new location
     // TODO: Evaluate whether the new location is realistic
     // Consider using the old location instead or interpolating
-    final newLocation = locate(matrix);
+    final newLocation = locate(matrix, perfectQrCode: perfectQrCode);
     if (newLocation != null) {
-      // Get new content
       newContent = decode(_extract(matrix, newLocation));
     }
 
@@ -93,10 +95,27 @@ class QrCode {
   /// Scan an encoded image in any format supported by the dart image library
   /// to update QR code and location
   scanImageBytes(Uint8List bytes) {
-    var image = decodeImage(bytes);
+    final image = decodeImage(bytes);
+    scanImage(image);
+    if (location == null && couldBeQRCodeBMPWithHiddenTransparency(bytes)) {
+      scanImage(fixQRCodeBMPWithHiddenTransparency(bytes));
+    }
+  }
+
+  scanImage(Image? image) {
     if (image == null) {
       return;
     }
+    // First pass: Simple black/white conversion. Only works with "perfect" QR codes.
+    // E.g. if it's the original QR code image file or the QR code is captured as a screenshot.
+    scanBitMatrix(convertBlackWhiteImageToBinary(image), perfectQrCode: true);
+    if (location != null && content != null) {
+      return;
+    }
+    // Second pass: Convert the image to gray scale and then to a bit matrix
+    // while considering regional luminance. Works better for QR codes
+    // that are captured with a physical camera but sometimes fails
+    // for "perfect" QR codes.
     scanBitMatrix(convertImageToBinary(image));
   }
 
