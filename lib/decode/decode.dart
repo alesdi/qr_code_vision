@@ -169,6 +169,7 @@ Version? _readVersion(BitMatrix matrix) {
   if (bestDifference <= 3) {
     return bestVersion;
   }
+  return null;
 }
 
 FormatInfo? _readFormatInformation(BitMatrix matrix) {

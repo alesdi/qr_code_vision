@@ -1,6 +1,5 @@
 library flutter_qr_tracker;
 
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart';
