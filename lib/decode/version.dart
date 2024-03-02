@@ -196,25 +196,25 @@ const versions = [
       ErrorCorrectionLevel(
         ecCodewordsPerBlock: 18,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 3, dataCodewordsPerBlock: 36),
+          ErrorCorrectionBlock(numBlocks: 2, dataCodewordsPerBlock: 68),
         ],
       ),
       ErrorCorrectionLevel(
-        ecCodewordsPerBlock: 26,
+        ecCodewordsPerBlock: 16,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 3, dataCodewordsPerBlock: 26),
+          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 27),
         ],
       ),
       ErrorCorrectionLevel(
         ecCodewordsPerBlock: 24,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 3, dataCodewordsPerBlock: 18),
+          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 19),
         ],
       ),
       ErrorCorrectionLevel(
-        ecCodewordsPerBlock: 22,
+        ecCodewordsPerBlock: 28,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 3, dataCodewordsPerBlock: 15),
+          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 15),
         ],
       ),
     ],
@@ -227,14 +227,20 @@ const versions = [
       ErrorCorrectionLevel(
         ecCodewordsPerBlock: 20,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 2, dataCodewordsPerBlock: 31),
+          ErrorCorrectionBlock(numBlocks: 2, dataCodewordsPerBlock: 78),
+        ],
+      ),
+      ErrorCorrectionLevel(
+        ecCodewordsPerBlock: 18,
+        ecBlocks: [
+          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 31)
         ],
       ),
       ErrorCorrectionLevel(
         ecCodewordsPerBlock: 18,
         ecBlocks: [
           ErrorCorrectionBlock(numBlocks: 2, dataCodewordsPerBlock: 14),
-          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 15),
+          ErrorCorrectionBlock(numBlocks: 4, dataCodewordsPerBlock: 15)
         ],
       ),
       ErrorCorrectionLevel(
@@ -1080,7 +1086,7 @@ const versions = [
     ],
   ),
   Version(
-    infoBits: 0x209D7,
+    infoBits: 0x209D5,
     versionNumber: 32,
     alignmentPatternCenters: [6, 34, 60, 86, 112, 138],
     errorCorrectionLevels: [
@@ -1088,7 +1094,6 @@ const versions = [
         ecCodewordsPerBlock: 30,
         ecBlocks: [
           ErrorCorrectionBlock(numBlocks: 17, dataCodewordsPerBlock: 115),
-          ErrorCorrectionBlock(numBlocks: 2, dataCodewordsPerBlock: 116),
         ],
       ),
       ErrorCorrectionLevel(
@@ -1101,8 +1106,8 @@ const versions = [
       ErrorCorrectionLevel(
         ecCodewordsPerBlock: 30,
         ecBlocks: [
-          ErrorCorrectionBlock(numBlocks: 35, dataCodewordsPerBlock: 24),
-          ErrorCorrectionBlock(numBlocks: 15, dataCodewordsPerBlock: 25),
+          ErrorCorrectionBlock(numBlocks: 10, dataCodewordsPerBlock: 24),
+          ErrorCorrectionBlock(numBlocks: 35, dataCodewordsPerBlock: 25),
         ],
       ),
       ErrorCorrectionLevel(

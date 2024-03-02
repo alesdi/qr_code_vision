@@ -266,7 +266,7 @@ class _CameraViewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final finderPatternPaint = Paint()
+    Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0
       ..color = Colors.red;

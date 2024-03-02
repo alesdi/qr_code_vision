@@ -17,61 +17,63 @@ QrContent? readData(Uint8ClampedList data, int version) {
           ? 1
           : 2;
 
-  QrContent result = QrContent(
-    text: "",
-    bytes: [],
-    chunks: [],
-    version: version,
-  );
+  String text = "";
+  List<int> bytes = [];
+  List<Chunk> chunks = [];
 
   while (stream.available() >= 4) {
     final mode = stream.readBits(4);
     if (mode == _modeByteIndex[_ModeByte.terminator]) {
-      return result;
+      return QrContent(
+        text: text,
+        bytes: bytes,
+        chunks: chunks,
+        version: version,
+      );
     } else if (mode == _modeByteIndex[_ModeByte.eci]) {
       if (stream.readBits(1) == 0) {
-        result.chunks.add(Chunk(
+        chunks.add(Chunk(
           type: ChunkMode.eci,
           assignmentNumber: stream.readBits(7),
         ));
       } else if (stream.readBits(1) == 0) {
-        result.chunks.add(Chunk(
+        chunks.add(Chunk(
           type: ChunkMode.eci,
           assignmentNumber: stream.readBits(14),
         ));
       } else if (stream.readBits(1) == 0) {
-        result.chunks.add(Chunk(
+        chunks.add(Chunk(
           type: ChunkMode.eci,
           assignmentNumber: stream.readBits(21),
         ));
       } else {
         // ECI data seems corrupted
-        result.chunks.add(Chunk(
+        chunks.add(Chunk(
           type: ChunkMode.eci,
           assignmentNumber: -1,
         ));
       }
     } else if (mode == _modeByteIndex[_ModeByte.numeric]) {
       final numericResult = decodeNumeric(stream, size);
-      result.text += numericResult.text;
-      result.bytes.addAll(numericResult.bytes);
-      result.chunks.add(Chunk(
+      text += numericResult.text;
+      bytes.addAll(numericResult.bytes);
+      chunks.add(Chunk(
         type: ChunkMode.numeric,
         text: numericResult.text,
       ));
     } else if (mode == _modeByteIndex[_ModeByte.alphanumeric]) {
       final alphanumericResult = _decodeAlphanumeric(stream, size);
-      result.text += alphanumericResult.text;
-      result.bytes.addAll(alphanumericResult.bytes);
-      result.chunks.add(Chunk(
+      text += alphanumericResult.text;
+      bytes.addAll(alphanumericResult.bytes);
+      chunks.add(Chunk(
         type: ChunkMode.alphanumeric,
         text: alphanumericResult.text,
       ));
     } else if (mode == _modeByteIndex[_ModeByte.byte]) {
       final byteResult = _decodeByte(stream, size);
-      result.text += byteResult.text;
-      result.bytes.addAll(byteResult.bytes);
-      result.chunks.add(
+      text += byteResult.text;
+      bytes.addAll(byteResult.bytes);
+      chunks.add(
         Chunk(
           type: ChunkMode.byte,
           bytes: byteResult.bytes,
@@ -80,9 +82,9 @@ QrContent? readData(Uint8ClampedList data, int version) {
       );
     } else if (mode == _modeByteIndex[_ModeByte.kanji]) {
       final kanjiResult = _decodeKanji(stream, size);
-      result.text += kanjiResult.text;
-      result.bytes.addAll(kanjiResult.bytes);
-      result.chunks.add(Chunk(
+      text += kanjiResult.text;
+      bytes.addAll(kanjiResult.bytes);
+      chunks.add(Chunk(
         type: ChunkMode.kanji,
         bytes: kanjiResult.bytes,
         text: kanjiResult.text,
@@ -92,17 +94,23 @@ QrContent? readData(Uint8ClampedList data, int version) {
 
   // If there is no data left, or the remaining bits are all 0, then that counts as a termination marker
   if (stream.available() == 0 || stream.readBits(stream.available()) == 0) {
-    return result;
+    return QrContent(
+      text: text,
+      bytes: bytes,
+      chunks: chunks,
+      version: version,
+    );
   }
+  return null;
 }
 
 /// The content of a QR code, that may consist of binary or text content,
 /// divided up into one or more chunks.
 class QrContent extends Equatable {
-  String text;
-  List<int> bytes;
-  List<Chunk> chunks;
-  int version;
+  final String text;
+  final List<int> bytes;
+  final List<Chunk> chunks;
+  final int version;
 
   QrContent(
       {required this.text,

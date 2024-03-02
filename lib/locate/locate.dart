@@ -17,6 +17,7 @@ const maxQuadRatio = 1.5;
 QrLocation? locate(
   final BitMatrix matrix, {
   final bool recenterLocation = false,
+  final bool perfectQrCode = false,
 }) {
   final List<_Quad> finderPatternQuads = [];
   List<_Quad> activeFinderPatternQuads = [];
@@ -37,35 +38,8 @@ QrLocation? locate(
         length = 1;
         lastBit = v;
 
-        // Do the last 5 color changes ~ match the expected ratio for a finder pattern? 1:1:3:1:1 of b:w:b:w:b
-        final averageFinderPatternBlockSize = scans.reduce((a, b) => a + b) / 7;
-        final validFinderPattern = (scans[
-                            0] -
-                        averageFinderPatternBlockSize)
-                    .abs() <
-                averageFinderPatternBlockSize &&
-            (scans[1] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            (scans[2] - 3 * averageFinderPatternBlockSize).abs() <
-                3 * averageFinderPatternBlockSize &&
-            (scans[3] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            (scans[4] - averageFinderPatternBlockSize).abs() <
-                averageFinderPatternBlockSize &&
-            !v; // And make sure the current pixel is white since finder patterns are bordered in white
-
-        // Do the last 3 color changes ~ match the expected ratio for an alignment pattern? 1:1:1 of w:b:w
-        final averageAlignmentPatternBlockSize =
-            scans.sublist(scans.length - 3).reduce((a, b) => a + b) / 3;
-        final validAlignmentPattern = (scans[2] -
-                        averageAlignmentPatternBlockSize)
-                    .abs() <
-                averageAlignmentPatternBlockSize &&
-            (scans[3] - averageAlignmentPatternBlockSize).abs() <
-                averageAlignmentPatternBlockSize &&
-            (scans[4] - averageAlignmentPatternBlockSize).abs() <
-                averageAlignmentPatternBlockSize &&
-            v; // Is the current pixel black since alignment patterns are bordered in black
+        final validFinderPattern = _isFinderPattern(scans, v);
+        final validAlignmentPattern = _isAlignmentPattern(scans, v);
 
         if (validFinderPattern) {
           // Compute the start and end x values of the large center black square
@@ -139,6 +113,21 @@ QrLocation? locate(
   alignmentPatternQuads.addAll(activeAlignmentPatternQuads);
 
   final List<_ScoredSizedPosition> finderPatterns = finderPatternQuads
+      .where((q) {
+        // The current scoring function does not work well for perfect QR codes.
+        // Rectangular regions in the content area of a QR code that match the
+        // finder pattern ratio get better scores than the actual finder patterns.
+        // TODO: Improve scoring function so that finder patterns in perfect QR codes get the highest score
+        // Once a better scoring function is found, this workaround is no longer needed.
+        if (!perfectQrCode) {
+          return true;
+        }
+        // Expect a square
+        final topWidth = q.top.endX - q.top.startX;
+        final bottomWidth = q.bottom.endX - q.bottom.startX;
+        final height = (q.bottom.y - q.top.y) + 1;
+        return topWidth == bottomWidth && bottomWidth == height;
+      })
       .where((q) =>
           q.bottom.y - q.top.y >=
           2) // All quads must be at least 2px tall since the center square is larger than a block
@@ -257,8 +246,13 @@ QrLocation? locate(
         Position<double>(x.floorToDouble(), y.floorToDouble()),
         [1, 1, 1],
         matrix);
-    final score =
-        sizeScore + Position<double>(x, y).distanceTo(expectedAlignmentPattern);
+    // The scoring function assigns lower scores to the actual alignment pattern
+    // in a perfect QR code than to other false positives that match the ratio.
+    // Therefore we ignore the score when we know that we have a perfect QR code.
+    // TODO: Improve scoring function so that the alignment pattern in a perfect qr code gets the highest score
+    // Once a better scoring function is found, this workaround is no longer needed.
+    final score = (perfectQrCode ? 0 : sizeScore) +
+        Position<double>(x, y).distanceTo(expectedAlignmentPattern);
 
     if (score < bestPatternScore) {
       bestPatternScore = score;
@@ -292,6 +286,97 @@ QrLocation? locate(
       dimension: dimension,
     );
   }
+}
+
+/// Whether the last 5 color changes match the expected ratio for a finder pattern in the QR code.
+///
+/// The parameter [scans] must be a window of length 5 of a run-length-encoded row in the bit matrix
+/// of the QR code, where [currentBit] is the first bit after that window.
+/// A QR Code finder pattern has a black-and-white ratio of 1:1:3:1:1.
+/// A row through the middle of a finder pattern where each block has size 1 looks like this:
+/// ```
+/// b = black
+/// w = white
+/// Row: bwbbbwb -> 1b 1w 3b 1w 1b -> 1:1:3:1:1
+/// ```
+/// Consider a perfect QR code image where each block is exactly 1 pixel:
+/// If [currentBit] is 0 (white) and scans is `[1,1,3,1,1]` then we have found
+/// a row through a finder pattern. Since [currentBit] encodes a white pixel,
+/// the last value  in [scans] encodes a single black pixel,
+/// the second last value a single white pixel and so on:
+/// `scans: [1b,1w,3b,1w,1b] current: 1w`
+bool _isFinderPattern(List<double> scans, bool currentBit) {
+  assert(scans.length == 5);
+
+  // make sure the current pixel is white
+  if (currentBit) {
+    return false;
+  }
+
+  // Use the average block size to detect the finder pattern in non-perfect QR code images
+  final avgBlockSize = scans.sum / 7;
+  final maxVariance = avgBlockSize / 2.0;
+
+  // The deviation from the expected ratio must be less than 50%.
+  // The following expression is equivalent to:
+  // 0.5 < (scans[0] / avgBlockSize) < 1.5
+  if ((scans[0] - avgBlockSize).abs() >= maxVariance) {
+    return false;
+  }
+
+  // 0.5 < (scans[1] / avgBlockSize) < 1.5
+  if ((scans[1] - avgBlockSize).abs() >= maxVariance) {
+    return false;
+  }
+
+  // 2.5 < (scans[2] / avgBlockSize) < 3.5
+  if ((scans[2] - 3 * avgBlockSize).abs() >= 3 * maxVariance) {
+    return false;
+  }
+
+  // 0.5 < (scans[3] / avgBlockSize) < 1.5
+  if ((scans[3] - avgBlockSize).abs() >= maxVariance) {
+    return false;
+  }
+
+  // (scans[4] / avgBlockSize) < 2
+  if ((scans[4] - avgBlockSize).abs() >= maxVariance) {
+    return false;
+  }
+
+  return true;
+}
+
+/// Whether the last 5 color changes match the expected ratio for an alignment pattern in the QR code.
+///
+/// Similar to [_isFinderPattern()] but matches the alignment pattern which
+/// has a ratio of 1:1:1 (1w 1b 1w).
+bool _isAlignmentPattern(List<double> scans, bool currentBit) {
+  assert(scans.length == 5);
+
+  // make sure the current pixel is black
+  if (!currentBit) {
+    return false;
+  }
+
+  final avgBlockSize = scans.sublist(scans.length - 3).sum / 3;
+
+  // (scans[2] / avgBlockSize) < 2
+  if ((scans[2] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // (scans[3] / avgBlockSize) < 2
+  if ((scans[3] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  // (scans[4] / avgBlockSize) < 2
+  if ((scans[4] - avgBlockSize).abs() >= avgBlockSize) {
+    return false;
+  }
+
+  return true;
 }
 
 // Data classes

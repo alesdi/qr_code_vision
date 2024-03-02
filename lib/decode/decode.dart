@@ -127,7 +127,7 @@ List<int> _readCodewords(
 Version? _readVersion(BitMatrix matrix) {
   int dimension = matrix.height;
   int provisionalVersion = ((dimension - 17) / 4).floor();
-  if (provisionalVersion <= 6) {
+  if (provisionalVersion > 0 && provisionalVersion <= 6) {
     // 6 and under don't have version info in the QR code
     return versions[provisionalVersion - 1];
   }
@@ -169,6 +169,7 @@ Version? _readVersion(BitMatrix matrix) {
   if (bestDifference <= 3) {
     return bestVersion;
   }
+  return null;
 }
 
 FormatInfo? _readFormatInformation(BitMatrix matrix) {
