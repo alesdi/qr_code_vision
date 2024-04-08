@@ -205,19 +205,16 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final width = cameraFrame.width;
       final height = cameraFrame.height;
-      final bytes = cameraFrame.planes[0].bytes;
+      Uint8List bytes = Uint8List(cameraFrame.planes[0].bytes.length);
 
-      // Extract and decode the raw image data
-      final completer = Completer();
-      ui.decodeImageFromPixels(
-        bytes,
-        width,
-        height,
-        ui.PixelFormat.bgra8888,
-        completer.complete,
-      );
-
-      final image = await completer.future;
+      if (cameraFrame.format.group == ImageFormatGroup.yuv420) {
+        List<Uint8List> planes = ImageProcessingUtilities.getPlanes(cameraFrame);
+        bytes = ImageProcessingUtilities.yuv420ToRgba8888(planes, width, height);
+      } else if (cameraFrame.format.group == ImageFormatGroup.bgra8888) {
+        bytes = cameraFrame.planes[0].bytes;
+      }
+      final image =
+          await ImageProcessingUtilities.createImage(bytes, width, height, ui.PixelFormat.rgba8888);
 
       // Update the QR code by scanning the image content
       _qrCode.scanRgbaBytes(bytes, width, height);
@@ -356,5 +353,85 @@ class _DebugOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) {
     return true;
+  }
+}
+
+class ImageProcessingUtilities {
+  static List<Uint8List> getPlanes(CameraImage cameraFrame) {
+    List<Uint8List> planes = [];
+    for (int planeIndex = 0; planeIndex < 3; planeIndex++) {
+      Uint8List buffer;
+      int width;
+      int height;
+      if (planeIndex == 0) {
+        width = cameraFrame.width;
+        height = cameraFrame.height;
+      } else {
+        width = cameraFrame.width ~/ 2;
+        height = cameraFrame.height ~/ 2;
+      }
+
+      buffer = Uint8List(width * height);
+
+      int pixelStride = cameraFrame.planes[planeIndex].bytesPerPixel!;
+      int rowStride = cameraFrame.planes[planeIndex].bytesPerRow;
+      int index = 0;
+      for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+          buffer[index++] = cameraFrame
+              .planes[planeIndex].bytes[i * rowStride + j * pixelStride];
+        }
+      }
+
+      planes.add(buffer);
+    }
+    return planes;
+  }
+
+  static Uint8List yuv420ToRgba8888(
+      List<Uint8List> planes, int width, int height) {
+    final yPlane = planes[0];
+    final uPlane = planes[1];
+    final vPlane = planes[2];
+
+    final Uint8List rgbaBytes = Uint8List(width * height * 4);
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        final int yIndex = y * width + x;
+        final int uvIndex = (y ~/ 2) * (width ~/ 2) + (x ~/ 2);
+
+        final int yValue = yPlane[yIndex] & 0xFF;
+        final int uValue = uPlane[uvIndex] & 0xFF;
+        final int vValue = vPlane[uvIndex] & 0xFF;
+
+        final int r = (yValue + 1.13983 * (vValue - 128)).round().clamp(0, 255);
+        final int g =
+            (yValue - 0.39465 * (uValue - 128) - 0.58060 * (vValue - 128))
+                .round()
+                .clamp(0, 255);
+        final int b = (yValue + 2.03211 * (uValue - 128)).round().clamp(0, 255);
+
+        final int rgbaIndex = yIndex * 4;
+        rgbaBytes[rgbaIndex] = r.toUnsigned(8);
+        rgbaBytes[rgbaIndex + 1] = g.toUnsigned(8);
+        rgbaBytes[rgbaIndex + 2] = b.toUnsigned(8);
+        rgbaBytes[rgbaIndex + 3] = 255; // Alpha value
+      }
+    }
+
+    return rgbaBytes;
+  }
+
+  static Future<ui.Image> createImage(
+      Uint8List buffer, int width, int height, ui.PixelFormat pixelFormat) {
+    final Completer<ui.Image> completer = Completer();
+
+    ui.decodeImageFromPixels(buffer, width, height, pixelFormat,
+        (ui.Image img) {
+      completer.complete(img);
+    });
+
+    return completer.future;
   }
 }
